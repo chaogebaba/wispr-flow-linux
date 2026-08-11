@@ -2,7 +2,6 @@
   lib,
   stdenvNoCC,
   rustPlatform,
-  fetchFromGitHub,
   electron_42,
   p7zip,
   icoutils,
@@ -20,6 +19,7 @@
 let
   pname = "wispr-flow";
   version = "1.6.7";
+  helperManifest = builtins.fromTOML (builtins.readFile ../helper/Cargo.toml);
 
   #============================================================================
   # Source: the user-supplied Wispr Flow Windows installer (a Squirrel .exe).
@@ -72,47 +72,30 @@ let
       && !(lib.hasPrefix "extract" rel)
       && !(lib.hasPrefix "logs" rel)
       && !(lib.hasPrefix "tools" rel)
+      && !(lib.hasPrefix "helper/target" rel)
       && !(lib.hasPrefix "result" rel);
   };
 
   #============================================================================
-  # The clean-room Linux helper, built from its own repo
-  # (github.com/wispr-flow-linux/helper) via Cargo.
+  # The clean-room Linux helper, built from the bundled helper/ Cargo crate.
   #
-  # The crate has a committed Cargo.lock, so cargoLock.lockFile gives a fully
-  # reproducible, vendored build off the fetched source. Produces
-  # `wispr-flow-linux-helper`, which the install phase stages at
-  # resources/Release/wispr-flow-linux-helper (mode 0755) where the patched
-  # main bundle's 'linux' branch looks for it.
+  # The committed Cargo.lock gives a reproducible vendored dependency build.
+  # rustPlatform builds for the package architecture and installs the binary
+  # that the patched main bundle resolves under resources/Release/.
   #============================================================================
-  # NOTE: nix is unavailable in the environment this was wired up in, so the
-  # real fixed-output (FOD) hash for the GitHub fetch cannot be computed here.
-  # The first `nix build` WILL FAIL and print the correct `hash = ...`; paste
-  # that value over lib.fakeHash below.
-  helperSrc = fetchFromGitHub {
-    owner = "wispr-flow-linux";
-    repo = "helper";
-    rev = "v0.1.0";
-    hash = lib.fakeHash;
-  };
-
   linux-helper = rustPlatform.buildRustPackage {
     pname = "wispr-flow-linux-helper";
-    version = "0.1.0";
+    version = helperManifest.package.version;
 
-    src = helperSrc;
+    src = "${sourceRoot}/helper";
+    cargoLock.lockFile = "${sourceRoot}/helper/Cargo.lock";
 
-    cargoLock.lockFile = "${helperSrc}/Cargo.lock";
-
-    # The crate speaks XCB/Wayland/uinput wire protocols directly (pure-Rust:
-    # x11rb, wayland-client, zbus, libc) — no C library dev headers needed, so
-    # no buildInputs. The Python helper scripts in the crate dir are test
-    # tooling, not part of the cargo build.
-    doCheck = false;
+    # The crate's tests are hermetic unit tests, so keep buildRustPackage's
+    # default doCheck=true and run them in the Nix sandbox.
 
     meta = with lib; {
       description = "Clean-room Linux helper for Wispr Flow (X11/Wayland text injection, window + selection)";
-      license = with licenses; [ mit asl20 ];
+      license = licenses.unlicense;
       platforms = platforms.linux;
       mainProgram = "wispr-flow-linux-helper";
     };

@@ -42,7 +42,7 @@ readonly PACKAGE_NAME='wispr-flow'
 readonly WM_CLASS='Wispr Flow'
 export WM_CLASS
 readonly APP_VERSION='1.6.7'
-readonly PACKAGE_RELEASE='1.0.4'
+readonly PACKAGE_RELEASE='1.0.5'
 readonly ELECTRON_VERSION='42.3.0'
 readonly ELECTRON_MAJOR='42'
 # Exported so scripts/build-linux.sh stages the versions the orchestrator
@@ -146,10 +146,10 @@ sync_stage_to_dist() {
 		auto 'Synced staged resources (app.asar + helper + native modules)'
 	else
 		warn "helper not present in staged tree ($helper)"
-		warn '  the staging auto-fetch failed (see warnings above) -- packaging'
-		warn '  will fail its helper check. Re-run with network access, or set'
-		warn '  HELPER_BIN to a local build, or repair the helper source/tag/'
-		warn '  checksum pins in the project root.'
+		warn '  the bundled helper build failed (see warnings above) -- packaging'
+		warn '  will fail its helper check. Ensure Cargo can build helper/ for'
+		warn '  the requested architecture, or set HELPER_BIN to a matching'
+		warn '  prebuilt executable.'
 	fi
 }
 

@@ -24,9 +24,9 @@ Build the RPM from the repository root:
 ./build.sh --build rpm
 ```
 
-The build downloads the pinned helper release, verifies its SHA-256 digest, and
-embeds it in the RPM. The package is intentionally unsigned, so install it as a
-local artifact:
+The build compiles the clean-room Rust helper from `helper/` for the requested
+architecture and embeds it in the RPM. The package is intentionally unsigned,
+so install it as a local artifact:
 
 ```bash
 sudo dnf install --nogpgcheck build-linux/rpm/rpmbuild/RPMS/*/wispr-flow-*.x86_64.rpm

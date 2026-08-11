@@ -75,9 +75,8 @@ trap "rm -rf '$tmp_dir'" EXIT
 
 log "Fetching ${asset_arch} native modules from ${NATIVE_REPO}@${tag} ..."
 
-# Download an asset by name into $tmp_dir: prefer gh (auth/rate limits), fall
-# back to curl on absence OR failure (the release is public). Mirrors
-# fetch-helper-bin.sh.
+# Download an asset by name into $tmp_dir: prefer gh (auth/rate limits), then
+# fall back to curl on absence or failure because the release is public.
 fetch_asset() {
 	local name="$1" url
 	url="https://github.com/${NATIVE_REPO}/releases/download/${tag}/${name}"

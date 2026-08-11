@@ -10,13 +10,13 @@ from the helper. On macOS/Windows the Swift/C# helpers supply them via OS-level
 key hooks. The Linux helper originally shipped only text injection / focus /
 clipboard, so the event stream was missing and every hotkey was silently dead.
 
-**Source files** (in the [`wispr-flow-linux/helper`](https://github.com/wispr-flow-linux/helper) repo):
+**Source files:**
 
-- [`src/capture/mod.rs`](https://github.com/wispr-flow-linux/helper/blob/main/src/capture/mod.rs) — backend selection, shared `KeypressEvent` emit, `HeldKeys` trait
-- [`src/capture/evdev.rs`](https://github.com/wispr-flow-linux/helper/blob/main/src/capture/evdev.rs) — `/dev/input` reader (Wayland + X11 fallback)
-- [`src/capture/xinput.rs`](https://github.com/wispr-flow-linux/helper/blob/main/src/capture/xinput.rs) — XInput2 raw-key reader (true X11, no device access)
-- [`src/keymap.rs`](https://github.com/wispr-flow-linux/helper/blob/main/src/keymap.rs) — `evdev_to_vk` (inverse of `vk_to_evdev`)
-- [`src/main.rs`](https://github.com/wispr-flow-linux/helper/blob/main/src/main.rs) — capture spawn + `CheckStaleKeys` handler
+- [`helper/src/capture/mod.rs`](../../helper/src/capture/mod.rs) — backend selection, shared `KeypressEvent` emit, `HeldKeys` trait
+- [`helper/src/capture/evdev.rs`](../../helper/src/capture/evdev.rs) — `/dev/input` reader (Wayland + X11 fallback)
+- [`helper/src/capture/xinput.rs`](../../helper/src/capture/xinput.rs) — XInput2 raw-key reader (true X11, no device access)
+- [`helper/src/keymap.rs`](../../helper/src/keymap.rs) — `evdev_to_vk` (inverse of `vk_to_evdev`)
+- [`helper/src/main.rs`](../../helper/src/main.rs) — capture spawn + `CheckStaleKeys` handler
 - [`reference/ipc-contract.md`](../reference/ipc-contract.md) — `KeypressEvent` shape (§5), VK codes (§6)
 
 ## The key realization

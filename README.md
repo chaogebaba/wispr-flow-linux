@@ -36,8 +36,9 @@ sudo dnf install --nogpgcheck build-linux/rpm/rpmbuild/RPMS/*/wispr-flow-*.rpm
 sudo apt install build-linux/deb/wispr-flow_*.deb
 ```
 
-The helper source, release tag, and per-architecture SHA-256 digests are pinned
-in `helper-source.txt`, `helper-version.txt`, and `helper-checksums.txt`.
+The helper source lives in [`helper/`](helper/) and is compiled for the package
+architecture during staging. Set `HELPER_BIN` only when intentionally supplying
+a matching prebuilt helper.
 
 > [!NOTE]
 > These packages bundle the proprietary Wispr Flow app, downloaded from Wispr's

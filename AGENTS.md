@@ -42,20 +42,15 @@ Windows installer). It is two things:
 2. A **clean-room Rust helper** that reimplements the one native capability Wispr
    Flow ships only for macOS (Swift) and Windows (C#): injecting transcribed text
    into the focused application. It is built from the documented IPC contract
-   (`docs/reference/`) and contains **no Wispr Flow code**. It now lives
-   in its own repo (`wispr-flow-linux/helper`); see the Repo layout below.
+   (`docs/reference/`) and contains **no Wispr Flow code**. Its Rust source lives
+   in `helper/` and is built locally as part of staging.
 
 ## Repo layout
 
-The project spans **two repositories** under the `wispr-flow-linux` org:
-
-- **`wispr-flow-linux/wispr-flow-linux` (this repo)** — the public-domain build
-  scripts and the local packaging makers.
-- **`wispr-flow-linux/helper`** — the clean-room Rust helper. It was extracted
-  from this repo and no longer lives here as a local source tree. The helper is
-  consumed as a **prebuilt binary** pinned by `helper-source.txt`,
-  `helper-version.txt`, and `helper-checksums.txt`; `build-linux.sh` stages it
-  through `HELPER_BIN`.
+This repository contains both the public-domain packaging pipeline and the
+clean-room Rust helper. The helper is a normal in-tree Cargo crate under
+`helper/`; `scripts/build-linux.sh` builds it for the requested package
+architecture unless an explicit `HELPER_BIN` override is supplied.
 
 > This fork is local-build-only. It publishes no application packages, package
 > repositories, signing keys, or automatic-update channels.
@@ -77,8 +72,9 @@ This repo's tree:
   - `launcher-common.sh` — the runtime `/usr/bin/wispr-flow` launcher library.
   - `doctor.sh` — the `wispr-flow --doctor` diagnostic surface.
   - `build-linux.sh` — the Phase-0 staging pipeline (see safety rules below).
-- `helper-source.txt` / `helper-version.txt` / `helper-checksums.txt` — the pinned
-  helper repository, release tag, and per-architecture SHA-256 digests.
+- `helper/` — the clean-room Rust helper source, Cargo lockfile, unit tests, and
+  manual IPC/VM validators. `scripts/setup/build-helper.sh` builds the requested
+  architecture and stages the executable through `HELPER_BIN`.
 - `docs/reference/` — the documented stdin/fd-3 IPC protocol (`ipc-contract.md`
   + `keycodes.json` / `commands.json`).
 - `tests/` — bats unit tests, per-format artifact tests, and the manual
@@ -87,8 +83,9 @@ This repo's tree:
   style guides.
 - `nix/`, `flake.nix` — Nix packaging.
 - `.github/workflows/` — CI gates (`shellcheck`, `codespell`, `test-flags`,
-  `tests`) run on every push/PR. Maintenance workflows may update source locks,
-  but this fork has no package-release or repository-publishing workflow.
+  `tests`, and the Rust helper gates) run on every push/PR. Maintenance
+  workflows may update source locks, but this fork has no package-release or
+  repository-publishing workflow.
 
 ## Code style
 
@@ -111,10 +108,9 @@ the last resort.
 
 ### Rust
 
-The helper's code and its `cargo fmt` / `cargo clippy --all-targets -- -D
-warnings` / `cargo test` gates live in its own repo (`wispr-flow-linux/helper`).
-This repo consumes the prebuilt binary pinned by `helper-source.txt`,
-`helper-version.txt`, and `helper-checksums.txt`.
+The helper lives in `helper/`. Run `cargo fmt --check`, `cargo clippy --locked
+--all-targets -- -D warnings`, and `cargo test --locked` from that directory;
+these gates also run in this repository's CI. Keep `Cargo.lock` committed.
 
 ### Docs / CHANGELOG
 

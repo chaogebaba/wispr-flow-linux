@@ -259,11 +259,21 @@ VK → Linux `KEY_*` input-event code for uinput/ydotool. This is a static looku
 Observed real usages in the bundle (sanity set): Ctrl+V (paste), Ctrl+A (select-all),
 Ctrl+Z (undo), Ctrl+Home/Shift (select to start), backspace, enter (submit), up/left (cursor nudge).
 
-### Modifier snapshot/restore
+### Modifier handling
 The Windows helper snapshots physically-held modifiers via `GetKeyState`
-(Shift/Ctrl/Alt/LMenu/RMenu) and releases-then-restores them around injection so the user's held
-keys don't corrupt the synthetic chord. Replicate on X11 via `XQueryKeymap` + temporary
-`XTestFakeKeyEvent` releases, restoring after.
+(Shift/Ctrl/Alt/LMenu/RMenu) and releases-then-restores them around injection so
+the user's held keys don't corrupt the synthetic chord. That is recovered
+Windows behavior, not a requirement to reproduce through a separate Linux input
+device.
+
+The uinput backend **must not** release or restore physical modifiers through its
+virtual keyboard. Linux tracks key state per `input_dev`, so a release on the
+helper device does not neutralize a key held on a physical keyboard, while a
+synthetic "restore" press can remain active on the helper device. The implemented
+Linux policy is to wait up to one second for physical modifiers to clear, fail
+without injecting on timeout, emit only a balanced requested chord, track every
+synthetic press, and release tracked keys during error and device teardown. The
+helper's own virtual device is excluded from capture and stale-key scans.
 
 ---
 
@@ -297,6 +307,6 @@ if (!existsSync(path)) { /* "Helper service script path not found" → feature d
 ```
 
 For a Linux build, add a `'linux'` branch pointing at the staged helper binary
-(`resources/Release/wispr-flow-linux-helper`, from the
-[wispr-flow-linux/helper](https://github.com/wispr-flow-linux/helper) release), and use
+(`resources/Release/wispr-flow-linux-helper`, built from the in-tree
+[`helper/`](../../helper/) crate), and use
 forward-slash path joins. This is the only mandatory patch to the unmodified app to wire the helper.

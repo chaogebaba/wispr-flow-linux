@@ -17,8 +17,7 @@
 #
 # On macOS/Windows the helper talks to the OS through native APIs and needs no
 # session env, so upstream never spread process.env. But the Linux helper's
-# backend detection (the helper's src/backend/mod.rs::pick_injector;
-# github.com/wispr-flow-linux/helper) gates
+# backend detection (helper/src/backend/mod.rs::pick_injector) gates
 # the Wayland/X11 injection + clipboard + active-app backends on the session
 # env vars WAYLAND_DISPLAY / DISPLAY (and, to actually connect, XDG_RUNTIME_DIR
 # and DBUS_SESSION_BUS_ADDRESS). With the replacement env none of those reach

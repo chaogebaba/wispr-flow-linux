@@ -11,11 +11,11 @@ the helper injects at the **kernel input layer** through an in-process
 `ext_data_control` protocol. This is the piece the whole port hinges on. The
 good news — it's live-validated.
 
-**Source files** (in the [`wispr-flow-linux/helper`](https://github.com/wispr-flow-linux/helper) repo):
+**Source files:**
 
-- [`src/backend/wayland.rs`](https://github.com/wispr-flow-linux/helper/blob/main/src/backend/wayland.rs) — the Wayland backend
-- [`src/backend/uinput.rs`](https://github.com/wispr-flow-linux/helper/blob/main/src/backend/uinput.rs) — the virtual keyboard
-- [`src/backend/wl_clipboard.rs`](https://github.com/wispr-flow-linux/helper/blob/main/src/backend/wl_clipboard.rs) — `ext-data-control` clipboard owner
+- [`helper/src/backend/wayland.rs`](../../helper/src/backend/wayland.rs) — the Wayland backend
+- [`helper/src/backend/uinput.rs`](../../helper/src/backend/uinput.rs) — the virtual keyboard
+- [`helper/src/backend/wl_clipboard.rs`](../../helper/src/backend/wl_clipboard.rs) — `ext-data-control` clipboard owner
 
 ## The key realization
 

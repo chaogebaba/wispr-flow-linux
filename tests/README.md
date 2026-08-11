@@ -1,8 +1,7 @@
 # Tests
 
-Hey! Here's how I test this thing locally. There are two tiers, and I've ordered
-them fastest → most environment-dependent (the Rust helper is tested in its own
-repo — more on that below).
+The repository has shell, Rust, and artifact validation tiers. Run the hermetic
+shell and Rust gates before the environment-dependent package checks.
 
 ## 1. bats unit tests (fast, no build needed)
 
@@ -15,6 +14,7 @@ bats tests/*.bats
 
 | File | Covers |
 |------|--------|
+| `helper-build.bats` | Local helper build and staging validation: architecture-to-Rust-target mapping, locked Cargo invocation, executable discovery, unsupported targets, and rejection of non-ELF or wrong-architecture overrides. |
 | `launcher-common.bats` | `scripts/launcher-common.sh`: logging paths, `check_display`, `detect_display_backend`, `build_electron_args` (sandbox/GPU/Wayland flag selection), `setup_electron_env`, `cleanup_stale_lock`, `wispr_config_dir`. |
 | `doctor.bats` | `scripts/doctor.sh`: the `_pass`/`_fail`/`_warn` counter, display/clipboard/helper/singleton-lock checks (driven with stubbed tool presence and temp fixtures), and `run_doctor` exit status. |
 | `verify-patches.bats` | `scripts/verify-patches.sh`: PASS when every Linux patch marker is present in a fixture app.asar, exit 1 when any one is omitted (omit-one matrix), exit 2 on bad usage. |
@@ -56,13 +56,19 @@ tests/test-artifact-appimage.sh  build-linux/appimage   # extracts AppImage or u
 If you go digging, the shared assertion lib plus `validate_app_contents` /
 `run_launch_smoke_test` all live in `test-artifact-common.sh`.
 
-## 3. Helper tests (separate repo)
+## 3. Helper tests
 
-You won't find the helper tests here anymore — I moved the clean-room Rust helper
-into its own repo,
-[github.com/wispr-flow-linux/helper](https://github.com/wispr-flow-linux/helper).
-That's where its Rust unit tests (`cargo test` + `fmt --check` +
-`clippy -D warnings`) live, along with the Python integration validators (the IPC
-harness, the clipboard/focus/injection round-trips, and the libvirt VM matrix).
-This repo only ever consumes the helper's prebuilt release binary — pinned by tag
-in `helper-version.txt`.
+The clean-room Rust helper lives in `helper/`, so its unit and lint gates run in
+this repository and in `.github/workflows/rust.yml`:
+
+```bash
+cd helper
+cargo fmt --check
+cargo clippy --locked --all-targets -- -D warnings
+cargo test --locked
+cargo build --locked --release
+```
+
+The Python IPC, clipboard, focus, injection, and VM validators also live in that
+directory. They require a graphical session or test VM and remain manual; see
+[`helper/README.md`](../helper/README.md).

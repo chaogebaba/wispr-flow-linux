@@ -13,7 +13,7 @@ shortcuts still fire, which is what makes this so confusing.
 **Source files:**
 
 - [`scripts/patches/helper-env.sh`](../../scripts/patches/helper-env.sh) — the fix (prepends `...process.env,`)
-- [`src/backend/mod.rs`](https://github.com/wispr-flow-linux/helper/blob/main/src/backend/mod.rs) (in the `wispr-flow-linux/helper` repo) — `pick_injector()`, the env gate
+- [`helper/src/backend/mod.rs`](../../helper/src/backend/mod.rs) — `pick_injector()`, the env gate
 - [`scripts/patches/helper-resolver.sh`](../../scripts/patches/helper-resolver.sh) — PATCH NOTE #3 (the original misdiagnosis)
 
 ## The symptom

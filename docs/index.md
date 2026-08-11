@@ -32,6 +32,8 @@ protocol — the contract everything else hangs off — is in
 
 ## Project direction
 
+- [**Helper source and manual validators**](../helper/README.md) — Rust build,
+  supported IPC surface, source layout, and live/VM test harnesses
 - [**Decision log**](decisions.md) — ADR-format record of what we ship and why
   (Rust helper, in-process uinput, clipboard paste, AT-SPI, the launcher rename)
 

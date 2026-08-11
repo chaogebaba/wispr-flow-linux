@@ -30,14 +30,11 @@ NET45_DIR="$EXTRACT_DIR/nupkg/lib/net45"
 RESOURCES_SRC="$NET45_DIR/resources"            # app.asar, app.asar.unpacked, Release/, assets, ...
 WEBPACK_MAIN="$EXTRACT_DIR/app/.webpack/main/index.js"   # unpacked main bundle (source of truth)
 
-# Clean-room Linux helper. Its release source, tag, and architecture-specific
-# SHA-256 digest are pinned in the project root. A pre-set HELPER_BIN (a local
-# build) is honored as an override; otherwise the build auto-fetches and verifies
-# the pinned release into the local helper-bin/ drop spot (resolve_helper_bin).
-# Track whether the caller supplied a value so a bad explicit override is
-# reported instead of silently fetched over.
+# Clean-room Linux helper. The default path is built from the bundled Rust crate
+# under helper/. A pre-set HELPER_BIN is honored as an explicit developer or
+# cross-build override and is never replaced automatically.
 HELPER_BIN_PRESET="${HELPER_BIN:+1}"
-HELPER_BIN="${HELPER_BIN:-$PROJECT_ROOT/helper-bin/wispr-flow-linux-helper}"
+HELPER_BIN="${HELPER_BIN:-}"
 
 # Linux-rebuilt native modules (better-sqlite3-multiple-ciphers + sqlite3). The
 # shipped app carries Windows PE .node; Step 4 swaps in the linux-$ARCH builds
@@ -64,124 +61,113 @@ auto()  { printf '  \033[1;32m[AUTO]\033[0m   %s\n' "$*"; }
 manual(){ printf '  \033[1;33m[MANUAL]\033[0m %s\n' "$*"; }
 warn()  { printf '  \033[1;31m[WARN]\033[0m   %s\n' "$*"; }
 
-# Resolve the clean-room Linux helper into $HELPER_BIN, in priority order:
-#   1. an executable HELPER_BIN override -- used as-is.
-#   2. a cached fetch whose source, tag, and SHA-256 digest match all current
-#      pins -- verified and reused.
-#   3. a stale or unverifiable cached fetch -- removed before refetch so it can
-#      never leak into a package.
-#   4. fetch and verify the pinned release via fetch-helper-bin.sh.
-#   5. fetch failure -- hard-fail in CI; locally continue staging, but package
-#      creation later refuses a tree without the helper.
+# Verify that a helper override or Cargo output is Linux ELF for $ARCH.
+validate_helper_bin() {
+	local magic machine want_machine
+
+	[[ -x $HELPER_BIN ]] || return 1
+	magic="$(elf_magic "$HELPER_BIN")"
+	if [[ $magic != '7f454c46' ]]; then
+		warn "Linux helper is not an ELF executable: $HELPER_BIN"
+		return 1
+	fi
+
+	case "$ARCH" in
+		x86_64|amd64|x64) want_machine='3e00' ;;
+		aarch64|arm64)    want_machine='b700' ;;
+		*)
+			warn "Unsupported helper architecture: $ARCH"
+			return 1
+			;;
+	esac
+
+	machine="$(LC_ALL=C od -An -j18 -N2 -tx1 "$HELPER_BIN" 2>/dev/null \
+		| tr -d ' \n')"
+	if [[ $machine != "$want_machine" ]]; then
+		warn "Linux helper has the wrong architecture (e_machine=$machine,"
+		warn "  want $want_machine for $ARCH): $HELPER_BIN"
+		return 1
+	fi
+	return 0
+}
+
+# Resolve the clean-room Linux helper into $HELPER_BIN:
+#   1. validate and use an explicit HELPER_BIN override.
+#   2. otherwise build helper/ for the requested package architecture.
 resolve_helper_bin() {
-  local helper_dir pinned_tag pinned_source stamp_tag stamp_source
-  local asset checksum_line expected_checksum actual_checksum
-  helper_dir="$(dirname "$HELPER_BIN")"
+	local built_helper
 
-  if [[ -x "$HELPER_BIN" ]]; then
-    if [[ $HELPER_BIN_PRESET == 1 ]]; then
-      auto "Found Linux helper binary: $HELPER_BIN"
-      return 0
-    fi
-    pinned_tag="$(tr -d '[:space:]' \
-      < "$PROJECT_ROOT/helper-version.txt" 2>/dev/null)"
-    pinned_source="$(tr -d '[:space:]' \
-      < "$PROJECT_ROOT/helper-source.txt" 2>/dev/null)"
-    stamp_tag=''
-    stamp_source=''
-    [[ -f "$helper_dir/.tag" ]] \
-      && stamp_tag="$(tr -d '[:space:]' < "$helper_dir/.tag")"
-    [[ -f "$helper_dir/.source" ]] \
-      && stamp_source="$(tr -d '[:space:]' < "$helper_dir/.source")"
-    case "$ARCH" in
-      x86_64|amd64|x64) asset='wispr-flow-linux-helper-x86_64' ;;
-      aarch64|arm64) asset='wispr-flow-linux-helper-aarch64' ;;
-      *) asset='' ;;
-    esac
-    checksum_line=''
-    if [[ -n $asset ]]; then
-      checksum_line="$(grep -E \
-        "^[[:xdigit:]]{64}[[:space:]]+${asset}$" \
-        "$PROJECT_ROOT/helper-checksums.txt" 2>/dev/null)" || true
-    fi
-    expected_checksum="${checksum_line%%[[:space:]]*}"
-    actual_checksum="$(sha256sum "$HELPER_BIN" 2>/dev/null)" || true
-    actual_checksum="${actual_checksum%%[[:space:]]*}"
+	if [[ $HELPER_BIN_PRESET == 1 ]]; then
+		if [[ ! -x $HELPER_BIN ]]; then
+			warn "HELPER_BIN is set but not executable: $HELPER_BIN"
+			return 1
+		fi
+		if ! validate_helper_bin; then
+			warn 'Refusing the invalid HELPER_BIN override.'
+			return 1
+		fi
+		auto "Using explicit Linux helper override: $HELPER_BIN"
+		return 0
+	fi
 
-    if [[ -n $pinned_tag && $stamp_tag == "$pinned_tag" \
-        && -n $pinned_source && $stamp_source == "$pinned_source" \
-        && -n $expected_checksum \
-        && $actual_checksum == "$expected_checksum" ]]; then
-      auto "Found verified Linux helper: $HELPER_BIN"
-      return 0
-    fi
-
-    warn "Cached helper does not match the current source, tag, or checksum pins."
-    warn "  Removing it before refetch so a stale helper cannot be packaged."
-    rm -f "$HELPER_BIN" "$helper_dir/.source" "$helper_dir/.tag" \
-      "$helper_dir/.sha256"
-  fi
-
-  if [[ $HELPER_BIN_PRESET == 1 ]]; then
-    warn "HELPER_BIN is set but not executable: $HELPER_BIN"
-    warn "  Respecting the override (not auto-fetching over it). Point it at a"
-    warn "  built helper (e.g. <helper checkout>/target/release/"
-    warn "  wispr-flow-linux-helper), or unset HELPER_BIN to auto-fetch the"
-    warn "  pinned prebuilt release."
-    return 1
-  fi
-
-  auto "Fetching pinned prebuilt helper ($ARCH)..."
-  if bash "$SCRIPT_DIR/setup/fetch-helper-bin.sh" "$ARCH" \
-      "$(dirname "$HELPER_BIN")" >/dev/null; then
-    auto "Fetched and verified helper into $HELPER_BIN"
-    return 0
-  fi
-
-  warn "Could not fetch and verify the pinned prebuilt helper."
-  if [[ -n ${GITHUB_ACTIONS:-} || -n ${CI:-} ]]; then
-    warn "In CI: refusing to continue without the helper."
-    exit 1
-  fi
-  warn "  Build will continue and stage everything else; packaging will"
-  warn "  refuse a tree without the helper. Set HELPER_BIN to a local build,"
-  warn "  or re-run with network access to auto-fetch."
-  return 1
+	auto "Building bundled Rust helper for $ARCH..."
+	built_helper="$(bash "$SCRIPT_DIR/setup/build-helper.sh" "$ARCH")" \
+		|| {
+			warn 'Could not build the bundled Rust helper.'
+			warn '  Install the requested Rust target and cross-linker, or set'
+			warn '  HELPER_BIN to a matching prebuilt executable.'
+			return 1
+		}
+	HELPER_BIN="$built_helper"
+	if ! validate_helper_bin; then
+		warn 'Cargo produced an invalid helper binary.'
+		return 1
+	fi
+	auto "Built Linux helper: $HELPER_BIN"
+	return 0
 }
 
 #===============================================================================
 # Step 0: preflight  [AUTO]
 #===============================================================================
 step0_preflight() {
-  say "Step 0: preflight"
-  local ok=1
-  if [[ -f "$RESOURCES_SRC/app.asar" ]]; then
-    auto "Found app.asar ($(du -h "$RESOURCES_SRC/app.asar" | cut -f1))"
-  else
-    warn "app.asar not found at $RESOURCES_SRC -- run extraction first (Track 1)."
-    ok=0
-  fi
-  if [[ -f "$WEBPACK_MAIN" ]]; then
-    auto "Found unpacked main bundle: $WEBPACK_MAIN"
-  else
-    warn "Unpacked main bundle not found at $WEBPACK_MAIN"
-    ok=0
-  fi
-  if [[ -f "$RESOURCES_SRC/Release/Wispr Flow Helper.exe" ]]; then
-    auto "Found Windows helper (will be replaced by the Linux helper): Release/Wispr Flow Helper.exe"
-  fi
-  resolve_helper_bin
-  if command -v node >/dev/null; then
-    auto "node $(node --version)"
-  else
-    warn "node not found (needed for asar + native rebuild)"
-  fi
-  if command -v npx >/dev/null; then
-    auto "npx present"
-  else
-    warn "npx not found"
-  fi
-  [[ $ok == 1 ]] || { warn "Preflight found missing inputs (see above). Continuing for documentation/dry-run."; }
+	say 'Step 0: preflight'
+	local ok=1
+	if [[ -f "$RESOURCES_SRC/app.asar" ]]; then
+		auto "Found app.asar ($(du -h "$RESOURCES_SRC/app.asar" | cut -f1))"
+	else
+		warn "app.asar not found at $RESOURCES_SRC -- run extraction first."
+		ok=0
+	fi
+	if [[ -f "$WEBPACK_MAIN" ]]; then
+		auto "Found unpacked main bundle: $WEBPACK_MAIN"
+	else
+		warn "Unpacked main bundle not found at $WEBPACK_MAIN"
+		ok=0
+	fi
+	if [[ -f "$RESOURCES_SRC/Release/Wispr Flow Helper.exe" ]]; then
+		auto 'Found Windows helper; the Linux helper will replace it.'
+	fi
+	if ! resolve_helper_bin; then
+		warn 'Preflight cannot continue without a valid Linux helper.'
+		if [[ $ok == 1 ]]; then
+			exit 1
+		fi
+		warn 'Continuing only because other source inputs are also missing.'
+	fi
+	if command -v node >/dev/null; then
+		auto "node $(node --version)"
+	else
+		warn 'node not found (needed for asar + native rebuild)'
+	fi
+	if command -v npx >/dev/null; then
+		auto 'npx present'
+	else
+		warn 'npx not found'
+	fi
+	if [[ $ok != 1 ]]; then
+		warn 'Preflight found missing inputs; continuing for documentation/dry-run.'
+	fi
 }
 
 #===============================================================================
@@ -541,9 +527,9 @@ step7_helper_and_repack() {
   local nm_rel=".webpack/main/native_modules/build/Release"
   local want_machine
   case "$ARCH" in
-    x64)   want_machine='3e00' ;;   # ELF e_machine EM_X86_64
-    arm64) want_machine='b700' ;;   # ELF e_machine EM_AARCH64
-    *)     want_machine='' ;;
+    x86_64|amd64|x64) want_machine='3e00' ;;   # EM_X86_64, little-endian
+    aarch64|arm64)    want_machine='b700' ;;   # EM_AARCH64, little-endian
+    *)                 want_machine='' ;;
   esac
   local mod nodef magic machine
   # The unpacked tree is what ships + dlopens: both .node MUST be present and be
@@ -639,8 +625,8 @@ DOC
       #   2. helper:  mkdir -p <resourcesPath>/Release && \\
       #               cp "$HELPER_BIN" \\
       #                  <resourcesPath>/Release/ && chmod +x <...>
-      #               ("$HELPER_BIN" = the source/tag/checksum-pinned helper,
-      #                or your local checkout's target/release binary)
+      #               ("$HELPER_BIN" = the helper built from ./helper for
+      #                $ARCH, or an explicit matching HELPER_BIN override)
       #   3. electron <app-dir>   (Linux Electron 42, --no-sandbox if needed)
       # NOTE: process.resourcesPath differs between 'electron <dir>' (dev) and a
       # packaged build; for the dev run, point the resolver at the app dir or use
@@ -668,4 +654,6 @@ main() {
   echo "                final .deb/.rpm/.AppImage packaging (all network/toolchain)."
 }
 
-main "$@"
+if [[ ${BASH_SOURCE[0]} == "$0" ]]; then
+  main "$@"
+fi

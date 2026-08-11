@@ -35,6 +35,10 @@ jobs:
     name: Codespell
     uses: ./.github/workflows/codespell.yml
 
+  rust:
+    name: Rust Helper
+    uses: ./.github/workflows/rust.yml
+
   tests:
     name: BATS Tests
     uses: ./.github/workflows/tests.yml

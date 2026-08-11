@@ -11,8 +11,10 @@
 /tools/
 
 # === Local prebuilt binary inputs (staged via env, never committed) ===
-/helper-bin/
 /native-modules/
+
+# === Rust ===
+/helper/target/
 
 # === Node ===
 node_modules/

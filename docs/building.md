@@ -27,7 +27,7 @@ for you via `scripts/setup/dependencies.sh`. Here are the logical deps:
 | `convert` | `imagemagick` / `ImageMagick` | icon resize/convert to Linux sizes |
 | `rsync` | `rsync` | stage the resources tree |
 | `node`, `npx` | `nodejs`, `npm` | `@electron/asar` pack/unpack + `@electron/rebuild` |
-| `cargo` *(optional)* | `cargo` | only to build the helper yourself from [its repo](https://github.com/wispr-flow-linux/helper); not needed for this repo's packages |
+| `cargo` | `cargo` | build the bundled clean-room Rust helper in `helper/` |
 | `wget` **or** `curl` | `wget` / `curl` | download the Linux Electron runtime |
 
 Format-specific (only the one you build):
@@ -37,10 +37,11 @@ Format-specific (only the one you build):
 | `dpkg-deb` | `dpkg-dev` / `dpkg` | `--build deb` |
 | `rpmbuild` | `rpm` / `rpm-build` | `--build rpm` |
 
-A **Rust toolchain** (`rustc` + `cargo`) is only needed if you build the helper
-yourself from its repo; the build auto-fetches the prebuilt helper otherwise.
-The native sqlite rebuild pulls `@electron/rebuild` via `npx` at build time, so
-that one isn't a system package you install ahead of time.
+A **Rust toolchain** (`rustc` + `cargo`) is required because the normal build
+compiles the bundled helper from `helper/`. It is not needed only when an
+explicit `HELPER_BIN` supplies a matching prebuilt executable. The native sqlite
+rebuild pulls `@electron/rebuild` via `npx` at build time, so that one isn't a
+system package you install ahead of time.
 
 ## Obtaining the installer
 
@@ -113,12 +114,12 @@ Wispr Flow is an Electron 42 / electron-forge app shipped as a Squirrel Windows
 installer. That's the same packaging stack as Claude Desktop, which I maintain a
 build script for, so the extract/repack half transfers cleanly. The hard part is
 unique to Wispr Flow. Its text-injection "Helper" process exists only as macOS
-(Swift) and Windows (C#) binaries, with no Linux variant and no source. A
-clean-room Rust helper reimplements it. This build no longer compiles the helper.
-By default it auto-fetches the repository and tag pinned in `helper-source.txt`
-and `helper-version.txt`, verifies the matching digest in
-`helper-checksums.txt`, and stages the binary; set `HELPER_BIN` to use a local
-build instead (see below). The app bundle is patched to load it on Linux.
+(Swift) and Windows (C#) binaries, with no Linux variant and no source. The
+clean-room Rust helper in `helper/` reimplements that contract. Staging builds
+it with Cargo for the requested package architecture and places the resulting
+executable under `resources/Release/`; set `HELPER_BIN` only to supply an
+explicit matching prebuilt binary. The app bundle is patched to load it on
+Linux.
 
 Here's what the staging pipeline (`scripts/build-linux.sh`) does:
 
@@ -156,30 +157,31 @@ The build fetches **Electron 42.3.0** for `linux-x64` (or `linux-arm64`) from
 the upstream releases. `scripts/setup/fetch-electron-binary.js` drives this, so
 you don't pick the runtime by hand.
 
-### The clean-room helper (prebuilt, with a `HELPER_BIN` override)
+### The clean-room helper (bundled source with a `HELPER_BIN` override)
 
-The helper is consumed like the native modules: a prebuilt release asset with
-its repository, tag, and architecture-specific SHA-256 digest pinned in
-`helper-source.txt`, `helper-version.txt`, and `helper-checksums.txt`. When
-`HELPER_BIN` is unset, staging downloads and verifies the selected release into
-`helper-bin/` via `scripts/setup/fetch-helper-bin.sh`.
+The helper is a normal Cargo crate under `helper/`. During preflight,
+`scripts/setup/build-helper.sh` maps the package architecture to
+`x86_64-unknown-linux-gnu` or `aarch64-unknown-linux-gnu`, runs a locked release
+build, and returns the resulting executable to the staging pipeline. Cargo's
+`helper/target/` cache makes unchanged rebuilds incremental.
 
-To use a local build instead (e.g. while hacking on the helper), point
-`HELPER_BIN` at it:
+Native builds work with the host Rust toolchain. The helper's glibc floor comes
+from that build host, so build on the target system or on the oldest distro you
+intend to support; this local-build-only fork does not publish a portable helper
+binary. A cross-architecture build also needs that Rust target and a matching
+linker; Cargo fails before staging if they are unavailable rather than allowing
+a host-architecture helper into the package. For an externally cross-compiled
+binary, set `HELPER_BIN` explicitly:
 
 ```bash
-HELPER_BIN=/path/to/helper/target/release/wispr-flow-linux-helper \
-  ./build.sh --build deb
+HELPER_BIN=/path/to/wispr-flow-linux-helper \
+  ./build.sh --build deb --arch arm64
 ```
 
-An explicit `HELPER_BIN` is always respected: if it points at a missing or
-non-executable file the build warns and does **not** fetch over it, and
-packaging then refuses the helper-less tree.
-
-A fetched copy is stamped with its source, release tag, and verified digest.
-Every subsequent build rechecks those pins and the binary itself; an un-stamped
-or mismatched default cache entry is removed before refetch. For offline builds,
-set `HELPER_BIN` explicitly to the local binary you trust.
+The override must be executable Linux ELF for the requested package
+architecture. A missing, non-executable, non-ELF, or wrong-architecture override
+is rejected. When `HELPER_BIN` is unset, the bundled source build is always the
+default and needs no helper download or release asset.
 
 ### Native sqlite modules (prebuilt, with an opt-in local rebuild)
 
@@ -189,7 +191,7 @@ unpatched, and a binary's glibc floor is set by where it's built — so the port
 treats the two sqlite addons like the clean-room helper: built **once**, on an
 old-glibc base, and consumed as pinned, checksummed release assets.
 
-Like the helper, the build + releases live in their **own repo**
+The native-module build and releases live in their **own repo**
 ([`wispr-flow-linux/native-modules`](https://github.com/wispr-flow-linux/native-modules)),
 split out so these CI-consumed artifacts don't inflate the main project's
 Release download counts.

@@ -22,6 +22,8 @@ decision date, and an owner.
 | [D-006](#d-006--rename-the-electron-launcher-to-wispr-flow) | 2026-06-04 | Accepted | Rename the Electron launcher to `wispr-flow` |
 | [D-007](#d-007--clean-room-v8-148-patch-for-better-sqlite3-multiple-ciphers) | 2026-06-04 | Accepted | Clean-room V8 14.8 patch for `better-sqlite3-multiple-ciphers` |
 | [D-008](#d-008--async-zbus-on-tokio-never-zbusblocking-for-services) | 2026-06-04 | Accepted | Async zbus on tokio, never `zbus::blocking` for services |
+| [D-009](#d-009--native-sqlite-addons-as-pinned-prebuilt-assets-not-a-build-time-rebuild) | 2026-06-06 | Accepted | Native sqlite addons as pinned prebuilt assets |
+| [D-010](#d-010--bundle-the-helper-source-in-this-repository) | 2026-08-11 | Accepted | Bundle the helper source in this repository |
 
 ---
 
@@ -42,11 +44,10 @@ helper had to be written from scratch.
 
 ### Decision
 
-I wrote the Linux helper fresh in **Rust** (it started in this repo, now it's its
-own repo
-[github.com/wispr-flow-linux/helper](https://github.com/wispr-flow-linux/helper)).
-I built it against the documented IPC contract (`docs/reference/`), not by
-porting the C#.
+I wrote the Linux helper fresh in **Rust** and keep its source in `helper/`.
+[D-010](#d-010--bundle-the-helper-source-in-this-repository) records why the
+crate and packaging pipeline are managed together. I built it against the
+documented IPC contract (`docs/reference/`), not by porting the C#.
 
 ### Rationale
 
@@ -385,18 +386,18 @@ CI image fails to load on older-but-supported distros.
 
 ### Decision
 
-Treat the addons like the clean-room helper: build them **once**, per arch, on an
-old-glibc base, and consume them as pinned, checksummed, provenance-stamped
-release assets.
+Treat the addons as architecture-specific binaries: build them **once**, per
+arch, on an old-glibc base, and consume them as pinned, checksummed,
+provenance-stamped release assets.
 
 - Producer: the **Build Native Modules** workflow in the dedicated
   `wispr-flow-linux/native-modules` repo builds on `manylinux_2_28` (glibc 2.28
   floor) via `scripts/rebuild-native-modules.sh` (lockfile-pinned `npm ci`, the
   V8 patch on a pristine checkout, isolated electron-gyp headers), validates
   under real Electron 42 (ABI 146 + encrypted-DB round-trip), and publishes to
-  the tag pinned in `native-modules-version.txt`. The build lives in its own repo
-  (like the helper) so these CI-consumed assets don't inflate the main project's
-  Release download counts.
+  the tag pinned in `native-modules-version.txt`. Its dedicated repository keeps
+  these CI-consumed assets separate from this project's source history and
+  package policy.
 - Consumer: `scripts/setup/fetch-native-bin.sh` (`NATIVE_REPO` →
   `wispr-flow-linux/native-modules`) verifies SHA-256 + the
   `native-modules.lock` provenance (asset `patch_sha256` == this checkout's
@@ -408,7 +409,9 @@ release assets.
   a deliberate choice (the build image) instead of an accident (the CI runner).
 - The provenance stamp — not ELF magic — is the trust anchor: a stale or
   wrong-ABI `.node` is ELF-valid but provenance-mismatched, and is rejected.
-- Mirrors the established `HELPER_BIN` / `helper-version.txt` pattern.
+- At the time, this mirrored the helper release-pin pattern. D-010 later moved
+  the helper source in-tree; native modules remain external because their old-
+  glibc producer environment and Electron ABI validation are load-bearing.
 
 ### Consequences
 
@@ -424,3 +427,51 @@ release assets.
 
 - [learnings/electron42-v8-sqlite.md](learnings/electron42-v8-sqlite.md),
   [building.md](building.md#native-sqlite-modules-prebuilt-with-an-opt-in-local-rebuild).
+
+---
+
+## D-010 — Bundle the helper source in this repository
+
+- **Status:** Accepted
+- **Decided:** 2026-08-11
+- **Owner:** @aaddrick
+
+### Context
+
+The standalone helper repository required a release workflow, two architecture
+assets, source/tag/checksum pins, cache stamps, a downloader, and a second CI
+pipeline. In this local-build-only fork, helper fixes and packaging changes move
+in lockstep, so that separation added synchronization work without improving the
+runtime boundary.
+
+### Decision
+
+Keep the complete clean-room Rust crate under `helper/` and build it from source
+during normal staging. Remove the external helper release pins, checksums,
+downloader, and cache stamps. Retain `HELPER_BIN` only as an explicit override
+for a matching developer or cross-compiled executable.
+
+### Rationale
+
+- Helper, IPC, packaging, tests, and documentation changes can land atomically.
+- Cargo's lockfile and incremental target directory replace release-asset cache
+  and checksum machinery for a local source build.
+- Nix builds the same in-tree crate rather than fetching a second repository.
+- One CI entry point runs both the Bash and Rust gates.
+- The fork remains local-build-only and needs no helper publication workflow.
+
+### Consequences
+
+- Normal builds require Cargo; cross-architecture builds also require the Rust
+  target and linker, or an explicit matching `HELPER_BIN`.
+- The helper inherits the build host's glibc floor. Build on the target system or
+  the oldest supported baseline when moving a locally built package elsewhere.
+- `helper/Cargo.toml` retains a crate version for the helper's `--version`
+  response, while package upgrade ordering remains in `PACKAGE_RELEASE`.
+- Staging validates ELF type and architecture before accepting either Cargo
+  output or an override.
+
+### References
+
+- [`../helper/README.md`](../helper/README.md),
+  [building.md](building.md#the-clean-room-helper-bundled-source-with-a-helper_bin-override).

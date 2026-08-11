@@ -9,10 +9,10 @@ code. The extension only loads after a **relogin**. And my original plan was to
 read the Introspect D-Bus API directly, but that hit an `AccessDenied` and forced
 the pivot to an extension.
 
-**Source files** (in the [`wispr-flow-linux/helper`](https://github.com/wispr-flow-linux/helper) repo):
+**Source files:**
 
-- [`src/backend/gnome.rs`](https://github.com/wispr-flow-linux/helper/blob/main/src/backend/gnome.rs) — the GNOME backend decorator
-- [`src/backend/gnome_extension/`](https://github.com/wispr-flow-linux/helper/tree/main/src/backend/gnome_extension) — `extension.js`, `metadata.json` (the bundled extension)
+- [`helper/src/backend/gnome.rs`](../../helper/src/backend/gnome.rs) — the GNOME backend decorator
+- [`helper/src/backend/gnome_extension/`](../../helper/src/backend/gnome_extension/) — `extension.js`, `metadata.json` (the bundled extension)
 
 ## Overview
 

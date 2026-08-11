@@ -10,18 +10,22 @@ Flow app version is tracked separately by the `+wispr{X.Y.Z}` suffix.
 
 ### Fixed
 
-- Helper pin bumped to `v0.1.3`, which prevents Wayland modifier state from
-  remaining active after Ctrl+Super push-to-talk and transcription paste.
+- Bundled helper `0.1.3` prevents Wayland modifier state from remaining active
+  after Ctrl+Super push-to-talk and transcription paste.
 
 ### Changed
 
-- Helper downloads now pin the repository, release tag, and architecture-specific
-  SHA-256 digest; downloaded binaries are rejected before staging when the digest
-  does not match.
+- Moved the complete clean-room Rust helper source into `helper/`. Normal staging
+  now builds the locked crate for the requested architecture and validates the
+  resulting ELF before packaging; `HELPER_BIN` remains an explicit override.
+- Removed the external helper repository/tag/checksum pins, release downloader,
+  cache stamps, and helper-fetch tests.
+- Nix now builds the in-tree helper crate, and CI runs its formatting, Clippy,
+  unit-test, and release-build gates alongside the packaging checks.
 - Removed package-hosting, signing, repository-publishing, automatic-update
   workflows, and AppImage self-update metadata. This fork builds standalone
   unsigned packages for manual installation only.
-- Local packages now carry wrapper release `1.0.4`, allowing packaging and helper
+- Local packages now carry wrapper release `1.0.5`, allowing packaging and helper
   updates to upgrade cleanly even when Wispr Flow stays at the same app version.
 
 ## [v1.0.3] - 2026-06-11

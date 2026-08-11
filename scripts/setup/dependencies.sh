@@ -14,7 +14,7 @@
 #   convert    (imagemagick)  -- icon conversion/resizing
 #   rsync                     -- stage resource trees
 #   node, npx                 -- @electron/asar pack/unpack + helpers
-#   cargo                     -- build the clean-room Rust helper (release)
+#   cargo                     -- build helper/ unless HELPER_BIN overrides it
 #   python3                   -- run the bundle patch suite (scripts/patches/*)
 # Format-specific:
 #   rpmbuild   (rpm-build)    -- only for --build rpm
@@ -40,7 +40,10 @@ check_dependencies() {
 
 	# Logical commands the build needs. wget/curl is satisfied by EITHER, so we
 	# check that pair specially below rather than listing both here.
-	local common_deps='7z wrestool icotool convert rsync node npx cargo python3'
+	local common_deps='7z wrestool icotool convert rsync node npx python3'
+	if [[ -z ${HELPER_BIN:-} ]]; then
+		common_deps="$common_deps cargo"
+	fi
 	local all_deps="$common_deps"
 
 	case "$build_format" in

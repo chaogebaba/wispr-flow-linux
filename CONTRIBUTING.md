@@ -42,13 +42,11 @@ I've scattered the docs across a few files. Here's the map:
 ## What we accept
 
 This repo is a **repackager** of the proprietary Wispr Flow Electron app. It
-pairs with a **clean-room Rust helper** that reimplements the one native
-capability Wispr Flow ships only for macOS/Windows — text injection into the
-focused app. The helper now lives in its own repo
-([github.com/wispr-flow-linux/helper](https://github.com/wispr-flow-linux/helper));
-this repo consumes it as a prebuilt binary pinned by `helper-source.txt`,
-`helper-version.txt`, and `helper-checksums.txt`, then stages it through the
-`HELPER_BIN` env var. Both sides welcome:
+also contains a **clean-room Rust helper** under `helper/` that reimplements the
+one native capability Wispr Flow ships only for macOS/Windows — text injection
+into the focused app. The helper is built from source during staging, and an
+explicit `HELPER_BIN` may override that build for development or cross-packaging.
+Both sides welcome:
 
 - Bug fixes against existing behaviour (packaging, launcher, helper, patches).
 - **Parity** with the macOS/Windows helper behaviour — closing gaps where the
@@ -120,15 +118,12 @@ per-line `# shellcheck disable=SCXXXX` with a why-comment is the last resort.
 
 ### Rust (the helper)
 
-The helper's code and its cargo gates (`cargo fmt`, `cargo clippy -D warnings`,
-`cargo test`) live in
-[github.com/wispr-flow-linux/helper](https://github.com/wispr-flow-linux/helper).
-Helper changes — new injection backends, IPC-contract parity, bug fixes — go
-there, and that repo's CI runs the Rust gates. In this repo the helper is
-consumed as a prebuilt binary pinned by `helper-source.txt`,
-`helper-version.txt`, and `helper-checksums.txt`, then staged via the
-`HELPER_BIN` env var. To bump it here, update all three pins from a published
-helper release.
+The helper's code lives in `helper/`. Run its gates from that directory:
+`cargo fmt --check`, `cargo clippy --locked --all-targets -- -D warnings`, and
+`cargo test --locked`. The same gates run in this repository's CI. Helper
+changes — injection backends, IPC-contract parity, and bug fixes — now land
+atomically with any packaging or documentation changes they require. Keep the
+crate version in `helper/Cargo.toml` accurate and commit `helper/Cargo.lock`.
 
 ### Markdown
 
@@ -137,9 +132,9 @@ URLs, and alt text can run over when breaking them hurts readability.
 
 ## Before submitting a PR
 
-- Run `shellcheck` + `actionlint` on touched scripts/workflows. Helper changes
-  (and their `cargo fmt` + `cargo clippy` + `cargo test` gates) go to the
-  [helper repo](https://github.com/wispr-flow-linux/helper), not here.
+- Run `shellcheck` + `actionlint` on touched scripts/workflows. For helper
+  changes, also run `cargo fmt --check`, `cargo clippy --locked --all-targets --
+  -D warnings`, and `cargo test --locked` from `helper/`.
 - For packaging/launcher/patch changes, build locally and run the artifact's
   `wispr-flow --doctor`. See [docs/building.md](docs/building.md). **Do not run
   `scripts/build-linux.sh` blindly** — its step 2 does `rm -rf build-linux/`,

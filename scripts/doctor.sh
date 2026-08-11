@@ -286,8 +286,8 @@ _doctor_check_gnome_extension() {
 
 #------------------------------------------------------------------------------
 # Helper binary — present, executable, and actually launches. Stat checks
-# alone green-lit a helper that aborted at exec with `GLIBC_2.39 not found`
-# (wispr-flow-linux/helper#1, #16), so probe by running `--version` with
+# alone green-lit an earlier helper that aborted with `GLIBC_2.39 not found`,
+# so probe by running `--version` with
 # stdin at EOF:
 #   * helper >= v0.1.2 prints its version and exits 0
 #   * older helpers ignore argv, hit stdin EOF, and exit 0 silently

@@ -1,0 +1,44 @@
+name: Rust Helper
+run-name: |
+  Rust helper: ${{
+    github.event_name == 'pull_request' && format('PR #{0} by @{1} - {2}', github.event.pull_request.number, github.actor, github.event.pull_request.title) ||
+    github.event_name == 'push' && github.event.head_commit && format('Push by @{0} - {1}', github.actor, github.event.head_commit.message) ||
+    format('{0} triggered by @{1}', github.event_name, github.actor)
+  }}
+
+on:
+  workflow_call: # Runs as a job inside ci.yml — the single entry point.
+  workflow_dispatch: # Allows manual triggering for testing.
+
+permissions:
+  contents: read
+
+jobs:
+  rust:
+    name: Format, lint, test, and build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: helper
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@b3b07ba8b418998c39fb20f53e8b695cdcc8de1b # stable
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
+
+      - name: Check formatting
+        run: cargo fmt --check
+
+      - name: Run Clippy
+        run: cargo clippy --locked --all-targets -- -D warnings
+
+      - name: Run unit tests
+        run: cargo test --locked
+
+      - name: Build release helper
+        run: cargo build --locked --release

@@ -12,18 +12,17 @@ our clean-room Rust helper attached. I built it the same way I build
 |---|---|
 | `patches/helper-resolver.sh` | The one mandatory app patch: adds a `'linux'` branch to the helper-path resolver in `.webpack/main/index.js`. Surgical, idempotent, keeps a `.orig` backup, verifies with a unique anchor. |
 | `patches/mac-gates.sh` | Gates the macOS "/Applications" startup guard to `darwin` so it no-ops on Linux (otherwise a blocking dialog + `app.quit()` kills launch). |
+| `setup/build-helper.sh` | Builds the bundled `helper/` crate for x86_64 or aarch64 and prints the resulting executable path. |
 | `build-linux.sh` | The full Phase-0 pipeline. Each step prints `[AUTO]` (runs here) or `[MANUAL]` (network/toolchain needed, documented + stubbed). |
 | `verify-patches.sh` | Post-repack safety net: static-greps the shipped `app.asar` for the Linux patch markers and fails the build if any are missing. |
 | `packaging/rpm.sh` | Packages the validated Linux tree as an installable `.rpm` (Fedora/RHEL). |
 | `patches/v8-14.8-better-sqlite3-multiple-ciphers.patch` | Clean-room V8 14.8 source-compat patch for `better-sqlite3-multiple-ciphers` (applied before `@electron/rebuild`). |
 | `README.md` | This file. |
 
-These scripts only **read** `extract/`, the prebuilt helper binary (resolved
-via `HELPER_BIN`; its source, release tag, and SHA-256 digests are pinned in
-`helper-source.txt`, `helper-version.txt`, and `helper-checksums.txt`), and
-`docs/reference/`. They write only under `scripts/` outputs and the build work
-dir `build-linux/`. I keep the helper binary and `docs/reference/` read-only on
-purpose. Nothing here touches them.
+These scripts read `extract/`, the bundled helper source under `helper/`, and
+`docs/reference/`. They write generated app and package output under
+`build-linux/` plus Cargo output under `helper/target/`; no proprietary-derived
+payload is committed.
 
 ## The flow
 
@@ -37,7 +36,7 @@ Wispr Flow Setup.exe ──7z──▶ *.nupkg ──7z──▶ lib/net45/{reso
    Step 4  REBUILD better-sqlite3-multiple-ciphers+sqlite3 │     for Linux Electron 42 ABI  [MANUAL]
    Step 5  DROP win-ca / crypt32 (Windows-only)            │
    Step 6  STAGE Linux Electron 42 runtime  [MANUAL]       │
-   Step 7  COPY in wispr-flow-linux-helper, repack asar    │
+   Step 7  BUILD + COPY wispr-flow-linux-helper, repack asar    │
    Step 8  PACKAGE .deb/.rpm/.AppImage (or run-in-place)   │  [MANUAL]
                                                            ▼
                                           build-linux/stage/  (resources tree)
@@ -102,7 +101,7 @@ leave the mac/win paths untouched, so the patch can't regress those platforms.
 | 4. Rebuild sqlite natives | ⚠️ MANUAL | `better-sqlite3-multiple-ciphers` + `sqlite3` ship as Windows `.node`; must rebuild for linux-x64 Electron 42 ABI. Complication: bsqlite-mc is pinned to a **yarn patch** in `package.json` — the rebuild must apply it. Without this the app launches but DB-backed features fail. |
 | 5. Drop win-ca/crypt32 | ✅ auto | Removes `crypt32-{ia32,x64}.node`; Linux uses the system CA bundle. Jabra Linux ELF is kept (already cross-platform). |
 | 6. Stage Linux Electron 42 | ⚠️ MANUAL | One hard network dep. Electron 42 is a normal upstream release with linux-x64/arm64 artifacts, so availability is expected — **verify the exact patch version (42.3.0) is downloadable**. |
-| 7. Copy helper + repack | ✅ auto | Helper staged at `Release/wispr-flow-linux-helper` (0755). Repack needs `@electron/asar`. |
+| 7. Build helper + repack | ✅ auto | Cargo builds `helper/` for the package architecture, then stages `Release/wispr-flow-linux-helper` as 0755. Repack needs `@electron/asar`. |
 | 8. Package .deb/.rpm/.AppImage | ⚠️ MANUAL | electron-forge already declares maker-deb/maker-rpm; or hand-roll like claude-desktop-debian's `scripts/packaging/*`. |
 
 **Real blockers:** none of these are show-stoppers. Two need network or
@@ -120,11 +119,12 @@ that part separately on KDE Wayland.
 # 1. patch the unpacked bundle (keeps a .orig backup)
 bash scripts/patches/helper-resolver.sh extract/app/.webpack/main/index.js
 
-# 2. get the prebuilt helper and stage it next to the app's resources.
-#    The helper source, tag, and digest are pinned in the project root;
-#    fetch that release (or build a local checkout) and point HELPER_BIN at it:
-export HELPER_BIN=/path/to/wispr-flow-linux-helper   # from the helper repo release
-#    place HELPER_BIN where process.resourcesPath/Release resolves for your layout
+# 2. build the bundled helper and stage it next to the app's resources.
+export HELPER_BIN="$(scripts/setup/build-helper.sh x64)"
+resources_path=/path/to/electron/resources
+mkdir -p "$resources_path/Release"
+cp "$HELPER_BIN" "$resources_path/Release/wispr-flow-linux-helper"
+chmod 0755 "$resources_path/Release/wispr-flow-linux-helper"
 
 # 3. launch with a Linux Electron 42 binary
 electron extract/app   # add --no-sandbox if your environment needs it
@@ -139,6 +139,5 @@ packaged build. For a dev launch, put the helper under the dev
 I've released these build scripts into the public domain (Unlicense). The Wispr
 Flow application itself stays proprietary and under its own terms.
 
-The clean-room helper (consumed from the source/tag/checksum pins through
-`HELPER_BIN`) is an independent reimplementation of the documented IPC contract
-(`docs/reference/`). It contains no Wispr Flow code.
+The clean-room helper in `helper/` is an independent reimplementation of the
+documented IPC contract (`docs/reference/`). It contains no Wispr Flow code.

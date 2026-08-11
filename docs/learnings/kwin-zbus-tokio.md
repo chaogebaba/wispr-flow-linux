@@ -9,10 +9,10 @@ version on the **blocking** zbus API. KDE active-app and running-apps came back
 cause clicked. This is the single most load-bearing concurrency invariant in the
 codebase.
 
-**Source files** (in the [`wispr-flow-linux/helper`](https://github.com/wispr-flow-linux/helper) repo):
+**Source files:**
 
-- [`src/backend/kwin.rs`](https://github.com/wispr-flow-linux/helper/blob/main/src/backend/kwin.rs) — the KWin bridge
-- [`src/backend/atspi_app.rs`](https://github.com/wispr-flow-linux/helper/blob/main/src/backend/atspi_app.rs) — the async-on-tokio pattern it now mirrors
+- [`helper/src/backend/kwin.rs`](../../helper/src/backend/kwin.rs) — the KWin bridge
+- [`helper/src/backend/atspi_app.rs`](../../helper/src/backend/atspi_app.rs) — the async-on-tokio pattern it now mirrors
 
 ## Overview
 
