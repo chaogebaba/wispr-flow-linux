@@ -11,7 +11,7 @@ you supply.
 ./build.sh --build rpm
 
 # ...or supply your own installer:
-./build.sh --build rpm --exe "/path/to/Wispr Flow Setup-v1.5.695.exe"
+./build.sh --build rpm --exe "/path/to/Wispr Flow Setup-v1.6.7.exe"
 ```
 
 ## Prerequisites
@@ -50,7 +50,7 @@ proprietary installer is never committed to the repo.
 
 To build against a specific installer instead, grab
 `Wispr Flow Setup-v<version>.exe` from [wisprflow.ai](https://wisprflow.ai) and
-pass it with `--exe`. The pinned version is **1.5.695** (set in `build.sh` as
+pass it with `--exe`. The pinned version is **1.6.7** (set in `build.sh` as
 `APP_VERSION`); the auto-download verifies the upstream latest matches it and
 aborts on a mismatch, since a different installer version can drift the patch
 anchors.
@@ -64,7 +64,7 @@ By default `build.sh` fetches the latest installer; pass `--exe` to use your own
 ./build.sh
 
 # Supply your own installer:
-./build.sh --exe "/path/to/Wispr Flow Setup-v1.5.695.exe"
+./build.sh --exe "/path/to/Wispr Flow Setup-v1.6.7.exe"
 
 # Or specify the format explicitly:
 ./build.sh --build deb        # Debian/Ubuntu .deb
@@ -114,12 +114,11 @@ installer. That's the same packaging stack as Claude Desktop, which I maintain a
 build script for, so the extract/repack half transfers cleanly. The hard part is
 unique to Wispr Flow. Its text-injection "Helper" process exists only as macOS
 (Swift) and Windows (C#) binaries, with no Linux variant and no source. A
-clean-room Rust helper
-([github.com/wispr-flow-linux/helper](https://github.com/wispr-flow-linux/helper))
-reimplements it. This build no longer compiles the helper. By default it
-auto-fetches the prebuilt binary pinned in `helper-version.txt` and stages it;
-set `HELPER_BIN` to use a local build instead (see below). The app bundle is
-patched to load it on Linux.
+clean-room Rust helper reimplements it. This build no longer compiles the helper.
+By default it auto-fetches the repository and tag pinned in `helper-source.txt`
+and `helper-version.txt`, verifies the matching digest in
+`helper-checksums.txt`, and stages the binary; set `HELPER_BIN` to use a local
+build instead (see below). The app bundle is patched to load it on Linux.
 
 Here's what the staging pipeline (`scripts/build-linux.sh`) does:
 
@@ -159,11 +158,11 @@ you don't pick the runtime by hand.
 
 ### The clean-room helper (prebuilt, with a `HELPER_BIN` override)
 
-The helper is consumed like the native modules: a prebuilt release asset pinned
-in `helper-version.txt`. When `HELPER_BIN` is unset, staging auto-fetches that
-tag from the [helper repo](https://github.com/wispr-flow-linux/helper)'s
-releases into `helper-bin/` via `scripts/setup/fetch-helper-bin.sh` — no env
-var, no manual step.
+The helper is consumed like the native modules: a prebuilt release asset with
+its repository, tag, and architecture-specific SHA-256 digest pinned in
+`helper-source.txt`, `helper-version.txt`, and `helper-checksums.txt`. When
+`HELPER_BIN` is unset, staging downloads and verifies the selected release into
+`helper-bin/` via `scripts/setup/fetch-helper-bin.sh`.
 
 To use a local build instead (e.g. while hacking on the helper), point
 `HELPER_BIN` at it:
@@ -177,11 +176,10 @@ An explicit `HELPER_BIN` is always respected: if it points at a missing or
 non-executable file the build warns and does **not** fetch over it, and
 packaging then refuses the helper-less tree.
 
-A fetched copy is stamped with its release tag (`helper-bin/.tag`), so when
-`helper-version.txt` is bumped the stale cache is refetched automatically on
-the next build. Offline, you can also pre-drop a binary at
-`helper-bin/wispr-flow-linux-helper` — an executable there without a stamp is
-treated as a deliberate local drop and used as-is.
+A fetched copy is stamped with its source, release tag, and verified digest.
+Every subsequent build rechecks those pins and the binary itself; an un-stamped
+or mismatched default cache entry is removed before refetch. For offline builds,
+set `HELPER_BIN` explicitly to the local binary you trust.
 
 ### Native sqlite modules (prebuilt, with an opt-in local rebuild)
 

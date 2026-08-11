@@ -242,31 +242,8 @@ say "Building AppImage with $appimagetool"
 OUT="$WORK/${NAME}-${APP_VERSION}-${ARCH}.AppImage"
 export ARCH
 
-# In CI, embed update information and emit a .zsync delta so published AppImages
-# self-update via AppImageUpdate / appimaged. Local builds skip it (there is no
-# release to update from). Format:
-#   gh-releases-zsync|<user>|<repo>|<tag>|<filename-glob>
-# the glob matches any released version for this arch; |latest| tracks the most
-# recent GitHub Release. Keep the glob in sync with the OUT filename above.
-if [[ "${GITHUB_ACTIONS:-}" == 'true' ]]; then
-  if ! command -v zsyncmake >/dev/null 2>&1; then
-    warn 'zsyncmake not found; the .zsync delta will not be generated.'
-    warn '  Install the "zsync" package in the build environment to enable it.'
-  fi
-  update_info="gh-releases-zsync|wispr-flow-linux|wispr-flow-linux|latest|${NAME}-*-${ARCH}.AppImage.zsync"
-  say "Embedding AppImage update info: $update_info"
-  if ! "$appimagetool" --updateinformation "$update_info" "$APPDIR" "$OUT"; then
-    die "appimagetool failed to build the AppImage"
-  fi
-  if [[ -f "$OUT.zsync" ]]; then
-    echo "  zsync: $OUT.zsync (publish alongside the AppImage)"
-  else
-    warn 'zsync delta not generated (zsyncmake missing?); auto-update will be slower.'
-  fi
-else
-  if ! "$appimagetool" "$APPDIR" "$OUT"; then
-    die "appimagetool failed to build the AppImage"
-  fi
+if ! "$appimagetool" "$APPDIR" "$OUT"; then
+  die "appimagetool failed to build the AppImage"
 fi
 
 say "Done"

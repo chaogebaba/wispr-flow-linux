@@ -30,13 +30,12 @@ NET45_DIR="$EXTRACT_DIR/nupkg/lib/net45"
 RESOURCES_SRC="$NET45_DIR/resources"            # app.asar, app.asar.unpacked, Release/, assets, ...
 WEBPACK_MAIN="$EXTRACT_DIR/app/.webpack/main/index.js"   # unpacked main bundle (source of truth)
 
-# Clean-room Linux helper. It lives in its own repo
-# (github.com/wispr-flow-linux/helper) and is consumed as a prebuilt release
-# asset pinned in helper-version.txt. A pre-set HELPER_BIN (a local build, or
-# CI's prefetched asset) is honored as an override; otherwise the build
-# auto-fetches the pinned release into the local helper-bin/ drop spot
-# (resolve_helper_bin). Track whether the caller supplied a value so a bad
-# explicit override is reported instead of silently fetched over.
+# Clean-room Linux helper. Its release source, tag, and architecture-specific
+# SHA-256 digest are pinned in the project root. A pre-set HELPER_BIN (a local
+# build) is honored as an override; otherwise the build auto-fetches and verifies
+# the pinned release into the local helper-bin/ drop spot (resolve_helper_bin).
+# Track whether the caller supplied a value so a bad explicit override is
+# reported instead of silently fetched over.
 HELPER_BIN_PRESET="${HELPER_BIN:+1}"
 HELPER_BIN="${HELPER_BIN:-$PROJECT_ROOT/helper-bin/wispr-flow-linux-helper}"
 
@@ -54,7 +53,7 @@ STAGE="$WORK_DIR/stage"                          # becomes the app's resources/ 
 # override is exported. Keep APP_VERSION in lockstep with build.sh's APP_VERSION
 # so a standalone `build-linux.sh` run stages the same version the orchestrator
 # does (a divergent default silently mislabels the staged tree).
-APP_VERSION="${APP_VERSION:-1.5.695}"
+APP_VERSION="${APP_VERSION:-1.6.7}"
 ELECTRON_MAJOR="${ELECTRON_MAJOR:-42}"
 ELECTRON_VERSION="${ELECTRON_VERSION:-42.3.0}"
 ARCH="${ARCH:-x64}"   # linux-x64; the helper + sqlite must match
@@ -66,25 +65,17 @@ manual(){ printf '  \033[1;33m[MANUAL]\033[0m %s\n' "$*"; }
 warn()  { printf '  \033[1;31m[WARN]\033[0m   %s\n' "$*"; }
 
 # Resolve the clean-room Linux helper into $HELPER_BIN, in priority order:
-#   1. an executable HELPER_BIN override (CI's prefetched asset or a local
-#      build) -- used as-is, never version-checked.
-#   2. an executable binary in the default helper-bin/ drop spot, IF it is not
-#      a stale fetch: fetch-helper-bin.sh stamps the downloaded tag into
-#      helper-bin/.tag, and a stamp that disagrees with helper-version.txt
-#      means the pin moved past the cache -- refetch. No stamp = a manual
-#      pre-drop (the documented offline path) -- used as-is.
-#   3. HELPER_BIN was explicitly set but is missing/non-executable: respect the
-#      override -- warn and do NOT fetch over it.
-#   4. fetch the pinned prebuilt release asset (fetch-helper-bin.sh, tag in
-#      helper-version.txt) into the default helper-bin/ drop spot -- the
-#      normal, supported path for local builds.
-#   5. fetch failed:
-#      - in CI: hard-fail. A package without the helper is non-functional.
-#      - locally: warn and continue (preserves the offline dry-run behavior;
-#        the packaging makers refuse a helper-less tree, so nothing broken
-#        ships).
+#   1. an executable HELPER_BIN override -- used as-is.
+#   2. a cached fetch whose source, tag, and SHA-256 digest match all current
+#      pins -- verified and reused.
+#   3. a stale or unverifiable cached fetch -- removed before refetch so it can
+#      never leak into a package.
+#   4. fetch and verify the pinned release via fetch-helper-bin.sh.
+#   5. fetch failure -- hard-fail in CI; locally continue staging, but package
+#      creation later refuses a tree without the helper.
 resolve_helper_bin() {
-  local helper_dir pinned stamp
+  local helper_dir pinned_tag pinned_source stamp_tag stamp_source
+  local asset checksum_line expected_checksum actual_checksum
   helper_dir="$(dirname "$HELPER_BIN")"
 
   if [[ -x "$HELPER_BIN" ]]; then
@@ -92,17 +83,43 @@ resolve_helper_bin() {
       auto "Found Linux helper binary: $HELPER_BIN"
       return 0
     fi
-    pinned="$(tr -d '[:space:]' < "$PROJECT_ROOT/helper-version.txt" \
-      2>/dev/null)"
-    stamp=''
+    pinned_tag="$(tr -d '[:space:]' \
+      < "$PROJECT_ROOT/helper-version.txt" 2>/dev/null)"
+    pinned_source="$(tr -d '[:space:]' \
+      < "$PROJECT_ROOT/helper-source.txt" 2>/dev/null)"
+    stamp_tag=''
+    stamp_source=''
     [[ -f "$helper_dir/.tag" ]] \
-      && stamp="$(tr -d '[:space:]' < "$helper_dir/.tag")"
-    if [[ -z $stamp || $stamp == "$pinned" ]]; then
-      auto "Found Linux helper binary: $HELPER_BIN"
+      && stamp_tag="$(tr -d '[:space:]' < "$helper_dir/.tag")"
+    [[ -f "$helper_dir/.source" ]] \
+      && stamp_source="$(tr -d '[:space:]' < "$helper_dir/.source")"
+    case "$ARCH" in
+      x86_64|amd64|x64) asset='wispr-flow-linux-helper-x86_64' ;;
+      aarch64|arm64) asset='wispr-flow-linux-helper-aarch64' ;;
+      *) asset='' ;;
+    esac
+    checksum_line=''
+    if [[ -n $asset ]]; then
+      checksum_line="$(grep -E \
+        "^[[:xdigit:]]{64}[[:space:]]+${asset}$" \
+        "$PROJECT_ROOT/helper-checksums.txt" 2>/dev/null)" || true
+    fi
+    expected_checksum="${checksum_line%%[[:space:]]*}"
+    actual_checksum="$(sha256sum "$HELPER_BIN" 2>/dev/null)" || true
+    actual_checksum="${actual_checksum%%[[:space:]]*}"
+
+    if [[ -n $pinned_tag && $stamp_tag == "$pinned_tag" \
+        && -n $pinned_source && $stamp_source == "$pinned_source" \
+        && -n $expected_checksum \
+        && $actual_checksum == "$expected_checksum" ]]; then
+      auto "Found verified Linux helper: $HELPER_BIN"
       return 0
     fi
-    warn "Cached helper in $helper_dir was fetched as $stamp but"
-    warn "  helper-version.txt now pins $pinned -- refetching."
+
+    warn "Cached helper does not match the current source, tag, or checksum pins."
+    warn "  Removing it before refetch so a stale helper cannot be packaged."
+    rm -f "$HELPER_BIN" "$helper_dir/.source" "$helper_dir/.tag" \
+      "$helper_dir/.sha256"
   fi
 
   if [[ $HELPER_BIN_PRESET == 1 ]]; then
@@ -110,35 +127,25 @@ resolve_helper_bin() {
     warn "  Respecting the override (not auto-fetching over it). Point it at a"
     warn "  built helper (e.g. <helper checkout>/target/release/"
     warn "  wispr-flow-linux-helper), or unset HELPER_BIN to auto-fetch the"
-    warn "  pinned prebuilt release (helper-version.txt)."
+    warn "  pinned prebuilt release."
     return 1
   fi
 
-  auto "Fetching pinned prebuilt helper ($ARCH, tag in helper-version.txt)..."
+  auto "Fetching pinned prebuilt helper ($ARCH)..."
   if bash "$SCRIPT_DIR/setup/fetch-helper-bin.sh" "$ARCH" \
       "$(dirname "$HELPER_BIN")" >/dev/null; then
-    auto "Fetched helper into $HELPER_BIN"
+    auto "Fetched and verified helper into $HELPER_BIN"
     return 0
   fi
 
-  warn "Could not fetch the pinned prebuilt helper (network? unpublished tag"
-  warn "  in helper-version.txt?)."
+  warn "Could not fetch and verify the pinned prebuilt helper."
   if [[ -n ${GITHUB_ACTIONS:-} || -n ${CI:-} ]]; then
     warn "In CI: refusing to continue without the helper."
     exit 1
   fi
-  if [[ -x "$HELPER_BIN" ]]; then
-    # Only reachable via the stale-stamp path: the old fetch is still in
-    # place, and Step 7 stages whatever executable sits at $HELPER_BIN.
-    warn "  The previously fetched ${stamp:-unknown} helper is still in place"
-    warn "  and WILL be staged -- the package will carry that stale helper,"
-    warn "  not the pinned ${pinned:-tag}. Re-run with network access to"
-    warn "  refetch."
-  else
-    warn "  Build will continue and stage everything else; packaging will"
-    warn "  refuse a tree without the helper. Set HELPER_BIN to a local build,"
-    warn "  or re-run with network access to auto-fetch."
-  fi
+  warn "  Build will continue and stage everything else; packaging will"
+  warn "  refuse a tree without the helper. Set HELPER_BIN to a local build,"
+  warn "  or re-run with network access to auto-fetch."
   return 1
 }
 
@@ -185,8 +192,8 @@ step1_extract() {
   manual "This was performed by Track 1; the result lives in $EXTRACT_DIR."
   manual "To redo from a fresh installer (requires 7z):"
   cat <<'DOC'
-      7z x "Wispr Flow Setup-v1.5.695.exe" -o./extract            # -> *-full.nupkg
-      7z x "./extract/WisprFlow-1.5.695-full.nupkg" -o./extract/nupkg
+      7z x "Wispr Flow Setup-v1.6.7.exe" -o./extract            # -> *-full.nupkg
+      7z x "./extract/WisprFlow-1.6.7-full.nupkg" -o./extract/nupkg
       # Electron payload is then under extract/nupkg/lib/net45/
       # (resources/app.asar, resources/app.asar.unpacked/, resources/Release/, Wispr Flow.exe, *.pak)
 DOC
@@ -632,10 +639,8 @@ DOC
       #   2. helper:  mkdir -p <resourcesPath>/Release && \\
       #               cp "$HELPER_BIN" \\
       #                  <resourcesPath>/Release/ && chmod +x <...>
-      #               ("$HELPER_BIN" = a prebuilt helper from
-      #                github.com/wispr-flow-linux/helper releases, pinned tag in
-      #                helper-version.txt, or your local checkout's
-      #                target/release/wispr-flow-linux-helper)
+      #               ("$HELPER_BIN" = the source/tag/checksum-pinned helper,
+      #                or your local checkout's target/release binary)
       #   3. electron <app-dir>   (Linux Electron 42, --no-sandbox if needed)
       # NOTE: process.resourcesPath differs between 'electron <dir>' (dev) and a
       # packaged build; for the dev run, point the resolver at the app dir or use

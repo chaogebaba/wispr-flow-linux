@@ -42,6 +42,7 @@ readonly PACKAGE_NAME='wispr-flow'
 readonly WM_CLASS='Wispr Flow'
 export WM_CLASS
 readonly APP_VERSION='1.6.7'
+readonly PACKAGE_RELEASE='1.0.4'
 readonly ELECTRON_VERSION='42.3.0'
 readonly ELECTRON_MAJOR='42'
 # Exported so scripts/build-linux.sh stages the versions the orchestrator
@@ -71,18 +72,16 @@ source "$script_dir/scripts/setup/dependencies.sh"
 source "$script_dir/scripts/setup/download.sh"
 
 #===============================================================================
-# Package version derivation -- mirror the claude-desktop-debian scheme.
+# Package version derivation.
 #
-# The release tag has the shape  v<repoVer>+wispr<wisprVer>  (e.g.
-# v1.0.0+wispr1.5.695). When a parseable tag is supplied, the package/filename
-# version becomes  <wisprVer>-<repoVer>  (e.g. 1.5.695-1.0.0) so a downstream
-# worker can reconstruct the release tag from a package filename. For local /
-# no-tag builds the package version stays just <wisprVer> (the APP_VERSION
-# constant), and APP_VERSION itself is NEVER altered -- staging always sees the
-# bare upstream version.
+# Local builds use <wisprVer>-<packageRelease> so packaging-only/helper updates
+# have a real RPM/DEB upgrade path even when the proprietary app version is
+# unchanged. --release-tag remains an optional explicit release override.
+# APP_VERSION itself is never altered; staging always sees the bare upstream
+# application version.
 #===============================================================================
 derive_pkg_version() {
-	pkg_version="$APP_VERSION"
+	pkg_version="${APP_VERSION}-${PACKAGE_RELEASE}"
 	[[ -z $release_tag ]] && return 0
 
 	local repo_ver
@@ -93,7 +92,7 @@ derive_pkg_version() {
 		pkg_version="${APP_VERSION}-${repo_ver}"
 	else
 		warn "Release tag '$release_tag' does not match v<repoVer>+wispr<...>;"
-		warn "using bare package version '$pkg_version'."
+		warn "using default package version '$pkg_version'."
 	fi
 }
 
@@ -149,8 +148,8 @@ sync_stage_to_dist() {
 		warn "helper not present in staged tree ($helper)"
 		warn '  the staging auto-fetch failed (see warnings above) -- packaging'
 		warn '  will fail its helper check. Re-run with network access, or set'
-		warn '  HELPER_BIN to a local build (see helper-version.txt /'
-		warn '  wispr-flow-linux/helper).'
+		warn '  HELPER_BIN to a local build, or repair the helper source/tag/'
+		warn '  checksum pins in the project root.'
 	fi
 }
 
@@ -170,7 +169,7 @@ run_packaging() {
 			chmod +x "$script_dir/scripts/packaging/rpm.sh" || die 'cannot chmod rpm.sh'
 			"$script_dir/scripts/packaging/rpm.sh" "$dist_dir" "$pkg_version" "$arch_rpm" \
 				|| die 'scripts/packaging/rpm.sh failed'
-			final_output_path=$(find "$work_dir/rpm/rpmbuild/RPMS" -name "${PACKAGE_NAME}-${pkg_version}-*.rpm" 2>/dev/null | head -1)
+			final_output_path=$(find "$work_dir/rpm/rpmbuild/RPMS" -name "${PACKAGE_NAME}-${pkg_version}*.rpm" 2>/dev/null | head -1)
 			;;
 		deb)
 			chmod +x "$script_dir/scripts/packaging/deb.sh" || die 'cannot chmod deb.sh'
@@ -196,10 +195,10 @@ The Nix package is built straight from the flake, not through build.sh. It
 never fetches the proprietary app -- point it at the installer .exe you
 obtained yourself via WISPR_FLOW_EXE (needs --impure):
 
-    WISPR_FLOW_EXE="/path/Wispr Flow Setup-v1.5.695.exe" \
+    WISPR_FLOW_EXE="/path/Wispr Flow Setup-v1.6.7.exe" \
       nix build .#wispr-flow-fhs --impure   # recommended (glibc FHS wrapper)
 
-    WISPR_FLOW_EXE="/path/Wispr Flow Setup-v1.5.695.exe" \
+    WISPR_FLOW_EXE="/path/Wispr Flow Setup-v1.6.7.exe" \
       nix build .#wispr-flow --impure       # bare derivation (no FHS loader)
 
 Overlay/non-flake callers can instead override:

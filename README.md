@@ -1,17 +1,15 @@
 # Wispr Flow for Linux (unofficial)
 
-[![CI](https://github.com/wispr-flow-linux/wispr-flow-linux/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/wispr-flow-linux/wispr-flow-linux/actions/workflows/ci.yml?query=branch%3Amain)
+[![CI](https://github.com/chaogebaba/wispr-flow-linux/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/chaogebaba/wispr-flow-linux/actions/workflows/ci.yml?query=branch%3Amain)
 [![License: Unlicense](https://img.shields.io/badge/license-Unlicense-blue.svg)](UNLICENSE)
 
 This project provides build scripts to run the proprietary **Wispr Flow**
 voice-dictation app natively on Linux. It repackages the Windows installer and
 pairs it with a **clean-room Rust helper**, producing `.deb` packages
 (Debian/Ubuntu), `.rpm` packages (Fedora/RHEL), and distribution-agnostic
-AppImages for amd64 and arm64, plus an
-[AUR package](https://aur.archlinux.org/packages/wispr-flow-appimage) for Arch
-Linux and a Nix flake. The helper reimplements the one native capability Wispr
-Flow ships only for macOS and Windows: injecting transcribed text into your
-focused application.
+AppImages for amd64 and arm64, plus a Nix flake. The helper reimplements the one
+native capability Wispr Flow ships only for macOS and Windows: injecting
+transcribed text into your focused application.
 
 **This is an unofficial port.** I'm not affiliated with Wispr. For the official
 app and support, see [wisprflow.ai](https://wisprflow.ai). If you hit a
@@ -25,55 +23,39 @@ Security: [`SECURITY.md`](SECURITY.md).
 
 ## Installation
 
-Prebuilt packages ship for **amd64 and arm64** with every release. Pick the
-channel for your distro; the repo channels update with your normal system
-upgrades. Full details — signature verification, uninstall, per-format notes —
-are in [`docs/installation.md`](docs/installation.md).
-
-### APT (Debian/Ubuntu)
+This fork is local-build-only: it publishes no package repository, signing key,
+or automatic-update channel. Build the package you need and install it manually:
 
 ```bash
-curl -fsSL https://pkg.wispr-flow-linux.dev/KEY.gpg | sudo gpg --dearmor -o /usr/share/keyrings/wispr-flow.gpg
-echo "deb [signed-by=/usr/share/keyrings/wispr-flow.gpg arch=amd64,arm64] https://pkg.wispr-flow-linux.dev stable main" | sudo tee /etc/apt/sources.list.d/wispr-flow.list
-sudo apt update && sudo apt install wispr-flow
+# Fedora / RHEL
+./build.sh --build rpm
+sudo dnf install --nogpgcheck build-linux/rpm/rpmbuild/RPMS/*/wispr-flow-*.rpm
+
+# Debian / Ubuntu
+./build.sh --build deb
+sudo apt install build-linux/deb/wispr-flow_*.deb
 ```
 
-### DNF (Fedora/RHEL)
-
-```bash
-sudo curl -fsSL https://pkg.wispr-flow-linux.dev/rpm/wispr-flow.repo -o /etc/yum.repos.d/wispr-flow.repo
-sudo dnf install wispr-flow
-```
-
-### AUR (Arch Linux)
-
-```bash
-yay -S wispr-flow-appimage   # or: paru -S wispr-flow-appimage
-```
-
-### Manual download
-
-Grab a `.deb`, `.rpm`, or `.AppImage` from the
-[Releases page](https://github.com/wispr-flow-linux/wispr-flow-linux/releases).
+The helper source, release tag, and per-architecture SHA-256 digests are pinned
+in `helper-source.txt`, `helper-version.txt`, and `helper-checksums.txt`.
 
 > [!NOTE]
-> These published packages bundle the proprietary Wispr Flow app, downloaded from
-> Wispr's official endpoint at build time. Wispr Flow is a trademark of its
-> owners; this is an unofficial community port. Prefer to supply the installer
-> yourself? [Build from source](#building) instead.
+> These packages bundle the proprietary Wispr Flow app, downloaded from Wispr's
+> official endpoint at build time. Wispr Flow is a trademark of its owners; this
+> is an unofficial community port.
 
 ## Building
 
 By default `build.sh` downloads the Wispr Flow installer from Wispr's official
-endpoint at build time (the same source our [published releases](#installation)
-use); the repo never bundles or commits it. Build a package with:
+endpoint at build time; the repository never bundles or commits it. Build a
+package with:
 
 ```bash
 # Build an .rpm (downloads the installer automatically)
 ./build.sh --build rpm
 
 # ...or point it at an installer you already have
-./build.sh --build rpm --exe ~/Downloads/"Wispr Flow Setup-v1.5.695.exe"
+./build.sh --build rpm --exe ~/Downloads/"Wispr Flow Setup-v1.6.7.exe"
 ```
 
 `--exe` is optional: without it, `build.sh` fetches the latest installer and

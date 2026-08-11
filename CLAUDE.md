@@ -53,12 +53,12 @@ The project spans **two repositories** under the `wispr-flow-linux` org:
   scripts and the local packaging makers.
 - **`wispr-flow-linux/helper`** — the clean-room Rust helper. It was extracted
   from this repo and no longer lives here as a local source tree. The helper is
-  consumed as a **prebuilt binary** pinned in `helper-version.txt` and staged
-  via the `HELPER_BIN` env var (build-linux.sh resolves it).
+  consumed as a **prebuilt binary** pinned by `helper-source.txt`,
+  `helper-version.txt`, and `helper-checksums.txt`; `build-linux.sh` stages it
+  through `HELPER_BIN`.
 
-> The hosted distribution layer — the `gh-pages` APT/DNF tree, the `v*` tag
-> Releases, the gated publish/heartbeat workflows, and a `wispr-flow-linux/worker`
-> Cloudflare Worker fronting `pkg.wispr-flow-linux.dev`
+> This fork is local-build-only. It publishes no application packages, package
+> repositories, signing keys, or automatic-update channels.
 
 This repo's tree:
 
@@ -77,8 +77,8 @@ This repo's tree:
   - `launcher-common.sh` — the runtime `/usr/bin/wispr-flow` launcher library.
   - `doctor.sh` — the `wispr-flow --doctor` diagnostic surface.
   - `build-linux.sh` — the Phase-0 staging pipeline (see safety rules below).
-- `helper-version.txt` — the pinned helper release tag fetched from the helper
-  repo and staged via `HELPER_BIN`.
+- `helper-source.txt` / `helper-version.txt` / `helper-checksums.txt` — the pinned
+  helper repository, release tag, and per-architecture SHA-256 digests.
 - `docs/reference/` — the documented stdin/fd-3 IPC protocol (`ipc-contract.md`
   + `keycodes.json` / `commands.json`).
 - `tests/` — bats unit tests, per-format artifact tests, and the manual
@@ -87,12 +87,8 @@ This repo's tree:
   style guides.
 - `nix/`, `flake.nix` — Nix packaging.
 - `.github/workflows/` — CI gates (`shellcheck`, `codespell`, `test-flags`,
-  `tests`) that run on every push/PR, plus the **tag-driven release/publish
-  pipeline** (`ci.yml` build→test→release→APT→DNF→AUR, reusable
-  `build-amd64`/`build-arm64`/`test-artifacts`, `check-wispr-version`,
-  `apt-repo-heartbeat`, `cleanup-runs`, `update-flake-lock`). The publish chain
-  runs on a `v*` tag push; see [`RELEASING.md`](RELEASING.md). The worker lives
-  in its own repo (`wispr-flow-linux/worker`).
+  `tests`) run on every push/PR. Maintenance workflows may update source locks,
+  but this fork has no package-release or repository-publishing workflow.
 
 ## Code style
 
@@ -117,7 +113,8 @@ the last resort.
 
 The helper's code and its `cargo fmt` / `cargo clippy --all-targets -- -D
 warnings` / `cargo test` gates live in its own repo (`wispr-flow-linux/helper`).
-This repo consumes the prebuilt binary pinned in `helper-version.txt`.
+This repo consumes the prebuilt binary pinned by `helper-source.txt`,
+`helper-version.txt`, and `helper-checksums.txt`.
 
 ### Docs / CHANGELOG
 
@@ -182,8 +179,8 @@ knowledge.
 - Branch off issue numbers: `fix/123-description` or `feature/123-description`.
 - Reference issues in commits/PRs with `#123` or `Fixes #123`.
 - CI gates (`.github/workflows/ci.yml`): shellcheck, codespell, flag-parsing,
-  and bats, run on every push/PR. On a `v*` tag, the same workflow runs the
-  build→test→release→APT/DNF/AUR publish chain. See [`RELEASING.md`](RELEASING.md).
+  and bats run on every push/PR. Application packages are built and installed
+  locally; this fork has no tag-driven publish chain.
 
 ### Attribution
 

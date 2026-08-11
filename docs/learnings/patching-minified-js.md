@@ -279,9 +279,7 @@ Four layers: build log, syntactic validity, asar markers, runtime.
 
 3. Static-grep the shipped asar for every patch marker.
    `scripts/verify-patches.sh` automates this (its `MARKERS` array pairs a human
-   label with a fixed/Perl pattern) and runs in CI on the deb build via the
-   `Verify Linux patches in shipped asar` step in
-   `.github/workflows/build-amd64.yml`.
+   label with a fixed/Perl pattern) and runs during every local package build.
 
 4. Launch the package and check runtime state — the strongest layer. The
    headless smoke test in `tests/test-artifact-common.sh` boots the app under

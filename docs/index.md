@@ -19,8 +19,8 @@ protocol — the contract everything else hangs off — is in
 
 ## Installation & building
 
-- [**Installing**](installation.md) — prebuilt packages: the APT/DNF repos, the
-  AUR package, AppImage / manual download, updating, and uninstalling
+- [**Installing**](installation.md) — building and manually installing standalone
+  RPM, DEB, and AppImage artifacts; updating and uninstalling
 - [**Building from source**](building.md) — `./build.sh`, format flags, the
   Electron download, the native sqlite rebuild, the mandatory launcher rename
 - [**Configuration**](configuration.md) — env vars, where state lives, the
@@ -29,13 +29,6 @@ protocol — the contract everything else hangs off — is in
   `--doctor` output
 - [**Compatibility**](compatibility.md) — validated compositors / display
   servers and the access requirements per backend
-
-## Releasing & distribution
-
-- [**Releasing**](../RELEASING.md) — the tag scheme, the one-time prerequisites
-  (vars, secrets, `gh-pages`, AUR, Worker), and what CI does on a tag push
-- [**APT/DNF + redirect Worker**](learnings/apt-worker-architecture.md) — how
-  binaries reach users without hitting GitHub's 100 MB push cap
 
 ## Project direction
 

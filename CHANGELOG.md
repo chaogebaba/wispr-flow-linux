@@ -8,6 +8,22 @@ Flow app version is tracked separately by the `+wispr{X.Y.Z}` suffix.
 
 ## [Unreleased]
 
+### Fixed
+
+- Helper pin bumped to `v0.1.3`, which prevents Wayland modifier state from
+  remaining active after Ctrl+Super push-to-talk and transcription paste.
+
+### Changed
+
+- Helper downloads now pin the repository, release tag, and architecture-specific
+  SHA-256 digest; downloaded binaries are rejected before staging when the digest
+  does not match.
+- Removed package-hosting, signing, repository-publishing, automatic-update
+  workflows, and AppImage self-update metadata. This fork builds standalone
+  unsigned packages for manual installation only.
+- Local packages now carry wrapper release `1.0.4`, allowing packaging and helper
+  updates to upgrade cleanly even when Wispr Flow stays at the same app version.
+
 ## [v1.0.3] - 2026-06-11
 
 ### Fixed

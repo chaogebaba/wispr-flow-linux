@@ -19,8 +19,8 @@ our clean-room Rust helper attached. I built it the same way I build
 | `README.md` | This file. |
 
 These scripts only **read** `extract/`, the prebuilt helper binary (resolved
-via `HELPER_BIN`; the helper lives in its own repo,
-`github.com/wispr-flow-linux/helper`, pinned in `helper-version.txt`), and
+via `HELPER_BIN`; its source, release tag, and SHA-256 digests are pinned in
+`helper-source.txt`, `helper-version.txt`, and `helper-checksums.txt`), and
 `docs/reference/`. They write only under `scripts/` outputs and the build work
 dir `build-linux/`. I keep the helper binary and `docs/reference/` read-only on
 purpose. Nothing here touches them.
@@ -121,9 +121,8 @@ that part separately on KDE Wayland.
 bash scripts/patches/helper-resolver.sh extract/app/.webpack/main/index.js
 
 # 2. get the prebuilt helper and stage it next to the app's resources.
-#    The helper lives in its own repo (github.com/wispr-flow-linux/helper);
-#    download the release pinned in helper-version.txt (or build a local
-#    checkout) and point HELPER_BIN at it:
+#    The helper source, tag, and digest are pinned in the project root;
+#    fetch that release (or build a local checkout) and point HELPER_BIN at it:
 export HELPER_BIN=/path/to/wispr-flow-linux-helper   # from the helper repo release
 #    place HELPER_BIN where process.resourcesPath/Release resolves for your layout
 
@@ -140,7 +139,6 @@ packaged build. For a dev launch, put the helper under the dev
 I've released these build scripts into the public domain (Unlicense). The Wispr
 Flow application itself stays proprietary and under its own terms.
 
-The clean-room helper (its own repo, `github.com/wispr-flow-linux/helper`,
-consumed here as a prebuilt binary via `HELPER_BIN`) is an independent
-reimplementation of the documented IPC contract (`docs/reference/`). It contains
-no Wispr Flow code.
+The clean-room helper (consumed from the source/tag/checksum pins through
+`HELPER_BIN`) is an independent reimplementation of the documented IPC contract
+(`docs/reference/`). It contains no Wispr Flow code.

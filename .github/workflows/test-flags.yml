@@ -33,6 +33,9 @@ jobs:
           echo "$OUTPUT"
           echo "$OUTPUT" | grep -q "Build format:   deb" || (echo "::error::Expected 'Build format: deb'" && exit 1)
           echo "$OUTPUT" | grep -q "Clean:          no" || (echo "::error::Expected 'Clean: no'" && exit 1)
+          app_ver=$(grep -oP "readonly APP_VERSION='\K[^']+" build.sh)
+          pkg_release=$(grep -oP "readonly PACKAGE_RELEASE='\K[^']+" build.sh)
+          echo "$OUTPUT" | grep -q "Package version:${app_ver}-${pkg_release}" || (echo "::error::Expected local package release" && exit 1)
           echo "OK Test Case 1"
 
       # Test Case 2: --build deb --arch arm64 (cross-arch resolution)

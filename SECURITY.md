@@ -13,7 +13,7 @@ proprietary Wispr Flow Electron app. The boundary matters, so here's the map.
 
 | Area | In scope | Out of scope |
 |------|----------|--------------|
-| Rust helper ([wispr-flow-linux/helper](https://github.com/wispr-flow-linux/helper), pinned via `helper-version.txt`) | ✅ injection backends, IPC handling, uinput/clipboard/AT-SPI surface — tracked in that repo | — |
+| Rust helper (source/tag/digests pinned in `helper-source.txt`, `helper-version.txt`, and `helper-checksums.txt`) | ✅ injection backends, IPC handling, uinput/clipboard/AT-SPI surface — tracked in that repo | — |
 | Packaging (`scripts/packaging/`) | ✅ deb / rpm / AppImage makers, udev rule, file perms | — |
 | Launcher & doctor (`scripts/launcher-common.sh`, `scripts/doctor.sh`) | ✅ the `wispr-flow --doctor` surface, lock handling, the launcher rename | — |
 | App patches (`scripts/patches/`) | ✅ `helper-resolver.sh`, `mac-gates.sh`, the V8/sqlite patch | — |

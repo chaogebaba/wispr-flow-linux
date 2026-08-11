@@ -37,11 +37,9 @@ DIST="${1:-$PROJECT_ROOT/build-linux/downloads/electron-dist}"
 APP_VERSION="${2:-${APP_VERSION:-1.5.695}}"
 ARCH="${3:-$(uname -m)}"
 
-# RPM Version: cannot contain a hyphen, so split a combined
-# <wisprVer>-<repoVer> package version into Version: <wisprVer> and
-# Release: <repoVer>. A bare version keeps the default release of 1. The
-# canonical released asset name is always <name>-<version>-1.<arch>.rpm (no
-# %{?dist}), so a worker can reconstruct the release tag from the filename.
+# RPM Version cannot contain a hyphen, so split the combined
+# <wisprVer>-<packageRelease> value into Version and Release. A bare version
+# keeps the fallback release of 1.
 if [[ "$APP_VERSION" == *-* ]]; then
   RPM_VERSION="${APP_VERSION%%-*}"
   RPM_RELEASE="${APP_VERSION#*-}"
@@ -317,18 +315,13 @@ RPM_BUILT="$(find "$TOPDIR/RPMS" \
   -name "$NAME-$RPM_VERSION-$RPM_RELEASE*.rpm" | head -1)"
 [[ -n "$RPM_BUILT" ]] || die "rpmbuild did not produce an rpm"
 
-# ...then rename to the canonical, dist-free released asset name
-#   <name>-<version>[-<repoVer>]-1.<arch>.rpm
-# so a downstream worker can reconstruct the release tag from the filename and
+# Keep rpmbuild's canonical <name>-<Version>-<Release><dist>.<arch>.rpm name.
 # build.sh's <name>-<pkg_version>-*.rpm glob locates it deterministically.
-RPM_OUT="$(dirname "$RPM_BUILT")/$NAME-$APP_VERSION-1.$ARCH.rpm"
-if [[ "$RPM_BUILT" != "$RPM_OUT" ]]; then
-  mv -f "$RPM_BUILT" "$RPM_OUT"
-fi
+RPM_OUT="$RPM_BUILT"
 
 say "Done"
 echo "  RPM: $RPM_OUT"
 echo "  Size: $(du -h "$RPM_OUT" | cut -f1)"
 echo
-echo "  Install:  sudo dnf install '$RPM_OUT'"
+echo "  Install:  sudo dnf install --nogpgcheck '$RPM_OUT'"
 echo "  Run:      wispr-flow"

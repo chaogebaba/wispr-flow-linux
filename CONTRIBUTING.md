@@ -46,8 +46,9 @@ pairs with a **clean-room Rust helper** that reimplements the one native
 capability Wispr Flow ships only for macOS/Windows — text injection into the
 focused app. The helper now lives in its own repo
 ([github.com/wispr-flow-linux/helper](https://github.com/wispr-flow-linux/helper));
-this repo consumes it as a prebuilt binary pinned in `helper-version.txt` and
-staged via the `HELPER_BIN` env var. Both sides welcome:
+this repo consumes it as a prebuilt binary pinned by `helper-source.txt`,
+`helper-version.txt`, and `helper-checksums.txt`, then stages it through the
+`HELPER_BIN` env var. Both sides welcome:
 
 - Bug fixes against existing behaviour (packaging, launcher, helper, patches).
 - **Parity** with the macOS/Windows helper behaviour — closing gaps where the
@@ -124,9 +125,10 @@ The helper's code and its cargo gates (`cargo fmt`, `cargo clippy -D warnings`,
 [github.com/wispr-flow-linux/helper](https://github.com/wispr-flow-linux/helper).
 Helper changes — new injection backends, IPC-contract parity, bug fixes — go
 there, and that repo's CI runs the Rust gates. In this repo the helper is
-consumed as a prebuilt binary pinned in `helper-version.txt` and staged via the
-`HELPER_BIN` env var. To bump it here, point `helper-version.txt` at a released
-helper tag.
+consumed as a prebuilt binary pinned by `helper-source.txt`,
+`helper-version.txt`, and `helper-checksums.txt`, then staged via the
+`HELPER_BIN` env var. To bump it here, update all three pins from a published
+helper release.
 
 ### Markdown
 
