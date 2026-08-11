@@ -12,6 +12,9 @@ Flow app version is tracked separately by the `+wispr{X.Y.Z}` suffix.
 
 - Bundled helper `0.1.3` prevents Wayland modifier state from remaining active
   after Ctrl+Super push-to-talk and transcription paste.
+- The floating Flow status window is hidden by default on Linux, removing its
+  always-on-top overlay, Alt+Tab/Overview entry, and hover prompts. Set
+  `WISPR_SHOW_STATUS_WINDOW=1` to restore it.
 
 ### Changed
 
@@ -25,7 +28,7 @@ Flow app version is tracked separately by the `+wispr{X.Y.Z}` suffix.
 - Removed package-hosting, signing, repository-publishing, automatic-update
   workflows, and AppImage self-update metadata. This fork builds standalone
   unsigned packages for manual installation only.
-- Local packages now carry wrapper release `1.0.5`, allowing packaging and helper
+- Local packages now carry wrapper release `1.0.6`, allowing packaging and helper
   updates to upgrade cleanly even when Wispr Flow stays at the same app version.
 
 ## [v1.0.3] - 2026-06-11

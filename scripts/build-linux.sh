@@ -270,6 +270,16 @@ step3_patch_bundle() {
     auto "Running linux-deeplink.sh on $target_bundle"
     bash "$SCRIPT_DIR/patches/linux-deeplink.sh" "$target_bundle" \
       || warn "Deep-link patch failed -- see linux-deeplink.sh output above."
+    # The always-on-top status bar is already skipTaskbar/non-focusable, but
+    # native Wayland has no portable skip-taskbar request and GNOME still lists
+    # it in Alt+Tab/Overview. Keep its renderer alive for IPC while leaving the
+    # BrowserWindow hidden on Linux unless the operator explicitly opts in.
+    auto "Running linux-hide-status-window.sh on $target_bundle"
+    if ! bash "$SCRIPT_DIR/patches/linux-hide-status-window.sh" \
+        "$target_bundle"; then
+      warn "Status-window patch failed -- refusing to build a visible overlay."
+      exit 1
+    fi
 
     # Renderer + preload patches live alongside the main bundle under .webpack/.
     local webpack_root="${target_bundle%/main/index.js}"

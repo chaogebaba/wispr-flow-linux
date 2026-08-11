@@ -67,7 +67,8 @@ log_session_env() {
 		DISPLAY \
 		XDG_CURRENT_DESKTOP \
 		WISPR_USE_WAYLAND \
-		WISPR_DISABLE_GPU
+		WISPR_DISABLE_GPU \
+		WISPR_SHOW_STATUS_WINDOW
 	do
 		log_message "  $key=${!key:-}"
 	done

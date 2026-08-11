@@ -12,6 +12,7 @@ our clean-room Rust helper attached. I built it the same way I build
 |---|---|
 | `patches/helper-resolver.sh` | The one mandatory app patch: adds a `'linux'` branch to the helper-path resolver in `.webpack/main/index.js`. Surgical, idempotent, keeps a `.orig` backup, verifies with a unique anchor. |
 | `patches/mac-gates.sh` | Gates the macOS "/Applications" startup guard to `darwin` so it no-ops on Linux (otherwise a blocking dialog + `app.quit()` kills launch). |
+| `patches/linux-hide-status-window.sh` | Keeps the always-on-top Flow status BrowserWindow hidden on Linux by default while preserving its renderer and IPC; `WISPR_SHOW_STATUS_WINDOW=1` restores it. |
 | `setup/build-helper.sh` | Builds the bundled `helper/` crate for x86_64 or aarch64 and prints the resulting executable path. |
 | `build-linux.sh` | The full Phase-0 pipeline. Each step prints `[AUTO]` (runs here) or `[MANUAL]` (network/toolchain needed, documented + stubbed). |
 | `verify-patches.sh` | Post-repack safety net: static-greps the shipped `app.asar` for the Linux patch markers and fails the build if any are missing. |
@@ -32,7 +33,7 @@ Wispr Flow Setup.exe ──7z──▶ *.nupkg ──7z──▶ lib/net45/{reso
                                    │
                                    ▼
    Step 2  unpack app.asar  ──────────────────────────────┐
-   Step 3  PATCH main bundle: add 'linux' helper branch    │  ← patches/helper-resolver.sh
+   Step 3  PATCH main + renderer bundles for Linux behavior │  ← patches/*.sh
    Step 4  REBUILD better-sqlite3-multiple-ciphers+sqlite3 │     for Linux Electron 42 ABI  [MANUAL]
    Step 5  DROP win-ca / crypt32 (Windows-only)            │
    Step 6  STAGE Linux Electron 42 runtime  [MANUAL]       │

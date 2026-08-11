@@ -152,6 +152,19 @@ backup, `node --check`s the result, and is idempotent (re-run = byte-identical).
 | Chrome window fell to default framed + visible menu bar → make it frameless like win32 (1.5.695: the meeting_recorder window; the Hub/scratchpad windows now self-frame Linux via a two-way else branch) | [`linux-window-frame.sh`](../../scripts/patches/linux-window-frame.sh) | `WISPR_LINUX_FRAMELESS` |
 | Fresh installs seeded macOS `fn`/⌘ shortcut defaults + skipped the onboarding Permissions step → widen each renderer's `isWindows` **bind** to also be true on linux (bridge stays honest) | [`linux-renderer-treat-as-windows.sh`](../../scripts/patches/linux-renderer-treat-as-windows.sh) | `WISPR_LINUX_RENDERER_ISWIN` |
 | Cold-start `wispr-flow:` deep links dropped (parse was win32-only) → widen the argv-parse guard | [`linux-deeplink.sh`](../../scripts/patches/linux-deeplink.sh) | `WISPR_LINUX_DEEPLINK` |
+| Always-on-top Flow status bar remained in GNOME Alt+Tab/Overview despite `skipTaskbar:true` → keep the renderer alive but do not map its BrowserWindow by default | [`linux-hide-status-window.sh`](../../scripts/patches/linux-hide-status-window.sh) | `WISPR_LINUX_HIDE_STATUS_WINDOW` |
+
+The status-window gap is specific to native Wayland's surface model: the
+standard `xdg-toplevel` protocol has title and app-ID requests but no portable
+skip-taskbar request. Wispr already creates the window with `skipTaskbar:true`,
+`focusable:false`, `type:"toolbar"`, and `frame:false`; GNOME may still list the
+mapped surface. Avoid compositor-private Overview hooks: the patch leaves the
+status renderer initialized for app IPC but overrides that BrowserWindow instance's
+`show()` and `showInactive()` methods with `hide()` on Linux. This covers both the
+startup path and direct dictation-start remapping. The centralized show function
+also returns before starting monitor-position and alpha-hit-test polling while
+hidden. `WISPR_SHOW_STATUS_WINDOW=1` restores the upstream methods and polling
+for operators who want the Flow bar.
 
 `linux-renderer-treat-as-windows.sh` is the high-leverage one: per renderer it
 widens the *one* place `isWindows` is bound into a module-local

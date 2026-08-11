@@ -130,8 +130,9 @@ Here's what the staging pipeline (`scripts/build-linux.sh`) does:
    `'linux'` branch to the helper-path resolver so the app loads
    `<resourcesPath>/Release/wispr-flow-linux-helper`;
    `scripts/patches/mac-gates.sh` gates the macOS "move to Applications" guard to
-   `darwin` so it no-ops on Linux. See
-   [scripts/README.md](../scripts/README.md) for the exact edits.
+   `darwin`; and `scripts/patches/linux-hide-status-window.sh` keeps the
+   always-on-top Flow bar hidden on Linux unless `WISPR_SHOW_STATUS_WINDOW=1`.
+   See [scripts/README.md](../scripts/README.md) for the exact edits.
 4. **Stage native modules** for the Linux Electron 42 ABI. The app ships Windows
    `.node`; the build swaps in pinned, prebuilt linux `better_sqlite3.node` +
    `node_sqlite3.node` fetched and verified by

@@ -7,6 +7,8 @@
 #   * linux-renderer-treat-as-windows.sh -> widens each renderer's isWindows bind
 #                                           (bridge stays honest; no preload touched)
 #   * linux-deeplink.sh                  -> cold-start wispr-flow: argv parse on Linux
+#   * linux-hide-status-window.sh        -> keeps the floating status bar hidden
+#                                           unless explicitly restored
 #
 # The real bundle is the proprietary, gitignored app -- not available in CI -- so
 # each test drives a hermetic minified-JS FIXTURE carrying the exact anchor the
@@ -201,4 +203,103 @@ JS
 	run bash "$PATCH_DIR/linux-deeplink.sh" "$FIX"
 	[[ "$status" -ne 0 ]]
 	! grep -q 'WISPR_LINUX_DEEPLINK' "$FIX"
+}
+
+# =============================================================================
+# linux-hide-status-window.sh
+# =============================================================================
+
+write_status_fixture() {
+	cat > "$FIX" <<'JS'
+const events=[];
+class BrowserWindow {
+	constructor(options){this.options=options}
+	show(){events.push("show")}
+	showInactive(){events.push("showInactive")}
+	hide(){events.push("hide")}
+	isDestroyed(){return false}
+}
+const i={BrowserWindow};
+const n=new i.BrowserWindow({show:!1,title:"Flow Status Indicator",webPreferences:{backgroundThrottling:!1},focusable:!1});let r;
+const D={RA:{statusWindow:n}},a=()=>({error(){},info(){}}),q=()=>n;
+let P,W,polls=0;
+const pollMonitor=()=>{polls++;return 1},pollAlpha=()=>{polls++};
+const showStatus=()=>{const e=(D.RA.statusWindow&&!D.RA.statusWindow.isDestroyed()||(a().error("Tried to show/hide status window, but it was destroyed. Rebuilding."),D.RA.statusWindow=q()),D.RA.statusWindow);Array.from([P,W]).forEach(()=>{}),P=pollMonitor(),pollAlpha(e),e.showInactive(),a().info("Showing status window")};
+showStatus();n.showInactive();n.show();n.showInactive();
+console.log(events.join("|")+";polls="+polls);
+JS
+}
+
+@test "status-window: disables every show method on Linux and keeps the opt-in" {
+	write_status_fixture
+	run bash "$PATCH_DIR/linux-hide-status-window.sh" "$FIX"
+	[[ "$status" -eq 0 ]]
+	grep -q 'WISPR_LINUX_HIDE_STATUS_WINDOW' "$FIX"
+	grep -qF 'process.env.WISPR_SHOW_STATUS_WINDOW' "$FIX"
+	grep -qF 'n.show=()=>n.hide()' "$FIX"
+	grep -qF 'n.showInactive=()=>n.hide()' "$FIX"
+	node_check "$FIX"
+
+	if command -v node >/dev/null; then
+		run env -u WISPR_SHOW_STATUS_WINDOW node "$FIX"
+		[[ "$status" -eq 0 ]]
+		[[ "$output" == 'hide|hide|hide|hide|hide;polls=0' ]]
+
+		run env WISPR_SHOW_STATUS_WINDOW=1 node "$FIX"
+		[[ "$status" -eq 0 ]]
+		[[ "$output" == 'showInactive|showInactive|show|showInactive;polls=2' ]]
+	fi
+}
+
+@test "status-window: leaves unrelated BrowserWindows untouched" {
+	write_status_fixture
+	cat >> "$FIX" <<'JS'
+const x=new i.BrowserWindow({show:!1,title:"Settings"});
+x.showInactive();
+JS
+	run bash "$PATCH_DIR/linux-hide-status-window.sh" "$FIX"
+	[[ "$status" -eq 0 ]]
+	grep -qF 'x.showInactive();' "$FIX"
+	! grep -qF 'x.showInactive=()=>x.hide()' "$FIX"
+	node_check "$FIX"
+}
+
+@test "status-window: refuses an upstream constructor that may map immediately" {
+	cat > "$FIX" <<'JS'
+class BrowserWindow {hide(){}}
+const i={BrowserWindow};
+const n=new i.BrowserWindow({show:!0,title:"Flow Status Indicator",webPreferences:{backgroundThrottling:!1}});let r;
+JS
+	run bash "$PATCH_DIR/linux-hide-status-window.sh" "$FIX"
+	[[ "$status" -ne 0 ]]
+	[[ "$output" == *'missing `show:!1`'* ]]
+	! grep -q 'WISPR_LINUX_HIDE_STATUS_WINDOW' "$FIX"
+}
+
+@test "status-window: rejects a member-expression constructor assignment" {
+	cat > "$FIX" <<'JS'
+class BrowserWindow {hide(){}}
+const i={BrowserWindow},state={};
+state.statusWindow=new i.BrowserWindow({show:!1,title:"Flow Status Indicator",webPreferences:{backgroundThrottling:!1}});let r;
+JS
+	run bash "$PATCH_DIR/linux-hide-status-window.sh" "$FIX"
+	[[ "$status" -ne 0 ]]
+	[[ "$output" == *'BrowserWindow constructor'* ]]
+	! grep -q 'WISPR_LINUX_HIDE_STATUS_WINDOW' "$FIX"
+}
+
+@test "status-window: idempotent on second run" {
+	write_status_fixture
+	bash "$PATCH_DIR/linux-hide-status-window.sh" "$FIX"
+	assert_idempotent "$PATCH_DIR/linux-hide-status-window.sh" "$FIX"
+}
+
+@test "status-window: bails non-zero when the show anchor is absent" {
+	cat > "$FIX" <<'JS'
+const e={show(){}};
+e.show();
+JS
+	run bash "$PATCH_DIR/linux-hide-status-window.sh" "$FIX"
+	[[ "$status" -ne 0 ]]
+	! grep -q 'WISPR_LINUX_HIDE_STATUS_WINDOW' "$FIX"
 }

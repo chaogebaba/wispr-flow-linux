@@ -38,6 +38,7 @@ setup() {
 	unset WAYLAND_DISPLAY
 	unset WISPR_USE_WAYLAND
 	unset WISPR_DISABLE_GPU
+	unset WISPR_SHOW_STATUS_WINDOW
 	unset XDG_CURRENT_DESKTOP
 	unset XDG_SESSION_TYPE
 	unset XDG_SESSION_ID
@@ -132,6 +133,7 @@ teardown() {
 	XDG_CURRENT_DESKTOP='KDE'
 	WISPR_USE_WAYLAND='1'
 	WISPR_DISABLE_GPU='1'
+	WISPR_SHOW_STATUS_WINDOW='1'
 	log_session_env
 
 	run cat "$log_file"
@@ -143,7 +145,8 @@ teardown() {
 	[[ "${lines[4]}" == '  XDG_CURRENT_DESKTOP=KDE' ]]
 	[[ "${lines[5]}" == '  WISPR_USE_WAYLAND=1' ]]
 	[[ "${lines[6]}" == '  WISPR_DISABLE_GPU=1' ]]
-	[[ "${lines[7]}" == '}' ]]
+	[[ "${lines[7]}" == '  WISPR_SHOW_STATUS_WINDOW=1' ]]
+	[[ "${lines[8]}" == '}' ]]
 }
 
 @test "log_session_env: unset values render as 'KEY=' (no value)" {
@@ -159,6 +162,7 @@ teardown() {
 	[[ "${lines[4]}" == '  XDG_CURRENT_DESKTOP=' ]]
 	[[ "${lines[5]}" == '  WISPR_USE_WAYLAND=' ]]
 	[[ "${lines[6]}" == '  WISPR_DISABLE_GPU=' ]]
+	[[ "${lines[7]}" == '  WISPR_SHOW_STATUS_WINDOW=' ]]
 }
 
 # =============================================================================

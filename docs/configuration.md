@@ -12,30 +12,41 @@ wispr-flow --doctor
 
 ## Environment variables
 
-The launcher (`scripts/launcher-common.sh`) reads `WISPR_*` overrides. I kept
-that list short on purpose. The launcher only carries the overrides Wispr Flow
-actually needs at runtime. It does **not** carry the menu-bar, titlebar, or
-input-method overrides the claude-desktop reference had.
+The launcher (`scripts/launcher-common.sh`) and patched Electron main process read
+`WISPR_*` overrides. I kept that list short on purpose. The launcher only carries
+the overrides Wispr Flow actually needs at runtime. It does **not** carry the
+menu-bar, titlebar, or input-method overrides the claude-desktop reference had.
 
 | Variable | Default | Description |
 |---|---|---|
 | `WISPR_USE_WAYLAND` | unset | Set to `1` to force native Wayland (Ozone): pins `--ozone-platform=wayland`, enables the Wayland IME path, and exports `GDK_BACKEND=wayland`. Without it, Electron 42 auto-detects Wayland/X11. |
 | `WISPR_DISABLE_GPU` | unset | Set to `1` to pass `--disable-gpu --disable-software-rasterizer`. Workaround for blank windows / GPU-process crashes on broken drivers or remote sessions. Also applied automatically inside XRDP sessions. |
+| `WISPR_SHOW_STATUS_WINDOW` | unset | The floating Flow status bar is hidden on Linux by default so native Wayland compositors do not list it in Alt+Tab or Overview. Set to `1` to restore the upstream always-on-top status window. |
 
 ```bash
 # One-off:
 WISPR_USE_WAYLAND=1 wispr-flow
 WISPR_DISABLE_GPU=1 wispr-flow
+WISPR_SHOW_STATUS_WINDOW=1 wispr-flow
 
 # Persistent:
 echo 'export WISPR_DISABLE_GPU=1' >> ~/.profile
 ```
+
+Quit Wispr Flow before changing `WISPR_SHOW_STATUS_WINDOW`; launching a second
+instance only signals the already-running process, whose environment is fixed at
+startup.
 
 > [!NOTE]
 > Unlike the claude-desktop reference, the default does **not** force XWayland.
 > Wispr Flow's keystroke injection uses an in-process `/dev/uinput` virtual
 > keyboard (not X11 XTEST global hotkeys), so native Wayland is the validated
 > default. See [learnings/wayland-injection.md](learnings/wayland-injection.md).
+>
+> The status renderer remains initialized while its BrowserWindow stays hidden,
+> preserving internal status IPC without the desktop overlay. Status-bar monitor
+> positioning and alpha-hit-test polling are not started while hidden. Only the
+> visual Flow bar and its hover prompts are suppressed.
 
 ## Where state lives
 

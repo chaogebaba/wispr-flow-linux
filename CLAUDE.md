@@ -65,8 +65,10 @@ This repo's tree:
     download helpers.
   - `patches/` — the app patches: `helper-resolver.sh` (adds the `'linux'`
     helper-path branch), `mac-gates.sh` (gates the macOS Applications-folder
-    guard to darwin), and the V8 14.8 `better-sqlite3-multiple-ciphers` compat
-    patch. `verify-patches.sh` static-greps the repacked bundle for the markers.
+    guard to darwin), `linux-hide-status-window.sh` (keeps the floating Flow bar
+    hidden by default on Linux), and the V8 14.8
+    `better-sqlite3-multiple-ciphers` compat patch. `verify-patches.sh`
+    static-greps the repacked bundle for the markers.
   - `packaging/` — `deb.sh`, `rpm.sh`, `appimage.sh` makers; shared signature
     `<maker>.sh <dist_dir> <version> <arch>`.
   - `launcher-common.sh` — the runtime `/usr/bin/wispr-flow` launcher library.
